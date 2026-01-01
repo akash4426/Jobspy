@@ -20,7 +20,7 @@ st.markdown("""
     /* Global Styling */
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        color: #1a1a1a;
+        color: #000000;
     }
     
     /* Main Background with Gradient */
@@ -39,24 +39,21 @@ st.markdown("""
     h1 {
         font-weight: 700;
         font-size: 3rem;
-        background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: #000000;
         margin-bottom: 0.5rem;
         text-align: center;
         letter-spacing: -1px;
     }
     
     h2 {
-        color: #f0f0f0;
+        color: #1a1a1a;
         font-weight: 600;
         font-size: 1.5rem;
         margin-bottom: 1.5rem;
     }
     
     h3 {
-        color: #2d3748;
+        color: #1a1a1a;
         font-weight: 600;
         font-size: 1.2rem;
     }
@@ -64,7 +61,7 @@ st.markdown("""
     /* Subtitle */
     .subtitle {
         text-align: center;
-        color: rgba(255, 255, 255, 0.9);
+        color: #2d3748;
         font-size: 1.2rem;
         font-weight: 400;
         margin-bottom: 2rem;
