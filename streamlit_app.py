@@ -470,9 +470,9 @@ def main():
         # Advanced Options
         with st.expander("Advanced Filters", expanded=True):
             results_wanted = st.slider("Number of Results", min_value=5, max_value=50, value=15, step=5)
-            experience_level = st.selectbox(
-                "Experience Level",
-                ["All Levels", "Entry Level", "Mid Level", "Senior Level", "Internship"],
+            job_type = st.selectbox(
+                "Employment Type",
+                ["All Types", "Full-time", "Part-time", "Internship", "Contract"],
                 index=0
             )
             
@@ -492,12 +492,12 @@ def main():
             # Loading State
             with st.spinner("Searching across multiple job platforms..."):
                 try:
-                    # Map experience level
-                    exp_map = {
-                        "Entry Level": "entry_level",
-                        "Mid Level": "mid_level",
-                        "Senior Level": "senior_level",
-                        "Internship": "internship"
+                    # Map job type
+                    job_type_map = {
+                        "Full-time": "fulltime",
+                        "Part-time": "parttime",
+                        "Internship": "internship",
+                        "Contract": "contract"
                     }
                     
                     # Determine country
@@ -516,8 +516,8 @@ def main():
                         "country_indeed": country_indeed
                     }
                     
-                    if experience_level != "All Levels":
-                        scrape_params["job_type"] = exp_map.get(experience_level, "")
+                    if job_type != "All Types":
+                        scrape_params["job_type"] = job_type_map.get(job_type, "")
                     
                     # Scrape jobs
                     jobs_df = scrape_jobs(**scrape_params)
