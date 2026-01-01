@@ -332,6 +332,10 @@ st.markdown("""
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     }
     
+    .stAlert p, .stAlert div {
+        color: #000000 !important;
+    }
+    
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 2rem;
