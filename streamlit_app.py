@@ -641,6 +641,16 @@ def main():
             </p>
         </div>
         """, unsafe_allow_html=True)
+    
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; padding: 2rem 0 1rem 0;">
+        <p style="color: #1a1a1a; font-size: 1rem; font-weight: 500;">
+            Made with ♥ by Akash Karri
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
