@@ -470,9 +470,16 @@ def main():
         # Advanced Options
         with st.expander("Advanced Filters", expanded=True):
             results_wanted = st.slider("Number of Results", min_value=5, max_value=50, value=15, step=5)
+            
             job_type = st.selectbox(
                 "Employment Type",
-                ["All Types", "Full-time", "Part-time", "Internship", "Contract"],
+                ["All Types", "Full-time", "Internship"],
+                index=0
+            )
+            
+            experience_level = st.selectbox(
+                "Experience Level",
+                ["All Levels", "Entry Level", "Mid Level", "Senior Level"],
                 index=0
             )
             
@@ -500,6 +507,18 @@ def main():
                         "Contract": "contract"
                     }
                     
+                    # Add experience level to search term if specified
+                    search_term = job_role
+                    if experience_level != "All Levels":
+                        exp_keywords = {
+                            "Entry Level": "entry level",
+                            "Mid Level": "mid level",
+                            "Senior Level": "senior"
+                        }
+                        keyword = exp_keywords.get(experience_level, "")
+                        if keyword:
+                            search_term = f"{keyword} {job_role}"
+                    
                     # Determine country
                     if country_override != "Auto-detect":
                         country_indeed = country_override
@@ -509,7 +528,7 @@ def main():
                     # Prepare parameters
                     scrape_params = {
                         "site_name": ["indeed", "linkedin", "zip_recruiter", "glassdoor"],
-                        "search_term": job_role,
+                        "search_term": search_term,
                         "location": location,
                         "results_wanted": results_wanted,
                         "hours_old": 72,
