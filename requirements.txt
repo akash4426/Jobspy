@@ -1,7 +1,6 @@
-flask==3.0.0
-python-jobspy==1.1.74
-pandas==2.1.4
-openpyxl==3.1.2
-python-dotenv==1.0.0
-gunicorn==21.2.0
-streamlit==1.31.0
+streamlit
+pandas
+jobspy
+sentence-transformers
+scikit-learn
+pypdf
