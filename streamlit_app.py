@@ -190,21 +190,11 @@ if search_clicked:
                         resume_text = extract_resume_text(resume_file)
                         if resume_text:
                             jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
-                            jobs_df["match_reason"] = jobs_df["description"].apply(
-                                lambda d: generate_match_reason(resume_text, d)
-                            )
                             st.success("Jobs ranked using FAISS-based RAG retrieval.")
 
                     st.markdown(f"### Top {len(jobs_df)} Jobs")
 
                     for _, row in jobs_df.iterrows():
-                        match_reason = row.get('match_reason', '')
-                        match_reason_html = f"""
-                                <div style="font-size:0.9rem;color:#555">
-                                    {match_reason}
-                                </div>
-                        """ if match_reason else ""
-                        
                         st.markdown(
                             f"""
                             <div style="
@@ -222,7 +212,6 @@ if search_clicked:
                                 <div style="color:green;font-weight:600">
                                     Match Score: {row.get('match_score', 0)}%
                                 </div>
-                                {match_reason_html}
                             </div>
                             """,
                             unsafe_allow_html=True
