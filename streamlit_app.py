@@ -5,7 +5,6 @@ from datetime import datetime
 from pypdf import PdfReader
 
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
 import faiss
 import numpy as np
 
@@ -27,7 +26,7 @@ def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 model = load_model()
-EMBED_DIM = 384  # for all-MiniLM-L6-v2
+EMBED_DIM = 384
 
 # -------------------------------------------------
 # Helper Functions
@@ -40,7 +39,7 @@ def extract_resume_text(pdf_file):
     return text.strip()
 
 def determine_country(location_text):
-    loc = location_text.lower()
+    loc = str(location_text).lower()
     mapping = {
         "india": "India",
         "canada": "Canada",
@@ -57,44 +56,44 @@ def determine_country(location_text):
     return "USA"
 
 # -------------------------------------------------
-# RAG: Chunking + Vector Index
+# RAG Utilities
 # -------------------------------------------------
 def chunk_text(text, chunk_size=300):
+    text = str(text)
     words = text.split()
-    chunks = []
-    for i in range(0, len(words), chunk_size):
-        chunks.append(" ".join(words[i:i + chunk_size]))
-    return chunks
+    return [" ".join(words[i:i + chunk_size]) for i in range(0, len(words), chunk_size)]
 
 def build_faiss_index(text_chunks):
     embeddings = model.encode(text_chunks, show_progress_bar=False)
-    index = faiss.IndexFlatIP(EMBED_DIM)
     faiss.normalize_L2(embeddings)
+
+    index = faiss.IndexFlatIP(EMBED_DIM)
     index.add(embeddings)
-    return index, embeddings
+
+    return index
 
 def rank_jobs_with_rag(resume_text, jobs_df, top_k=20):
-    job_texts = jobs_df["description"].fillna("").tolist()
+    jobs_df["description"] = jobs_df["description"].fillna("").astype(str)
 
-    # Create chunks for retrieval
     job_chunks = []
     chunk_to_job = []
 
-    for idx, text in enumerate(job_texts):
-        chunks = chunk_text(text)
+    for idx, desc in enumerate(jobs_df["description"]):
+        chunks = chunk_text(desc)
         for ch in chunks:
             job_chunks.append(ch)
             chunk_to_job.append(idx)
 
     if not job_chunks:
+        jobs_df["match_score"] = 0
         return jobs_df
 
-    index, _ = build_faiss_index(job_chunks)
+    index = build_faiss_index(job_chunks)
 
     resume_embedding = model.encode([resume_text])
     faiss.normalize_L2(resume_embedding)
 
-    scores, indices = index.search(resume_embedding, k=min(top_k, len(job_chunks)))
+    scores, indices = index.search(resume_embedding, min(top_k, len(job_chunks)))
 
     job_scores = {}
     for score, idx in zip(scores[0], indices[0]):
@@ -108,12 +107,16 @@ def rank_jobs_with_rag(resume_text, jobs_df, top_k=20):
     return jobs_df.sort_values("match_score", ascending=False)
 
 # -------------------------------------------------
-# Simple Explanation Generator (Interview-Safe)
+# Safe Explanation Generator
 # -------------------------------------------------
 def generate_match_reason(resume_text, job_desc):
-    resume_keywords = set(resume_text.lower().split()[:50])
-    job_keywords = set(job_desc.lower().split())
-    overlap = resume_keywords.intersection(job_keywords)
+    resume_text = str(resume_text)
+    job_desc = str(job_desc)
+
+    resume_words = set(resume_text.lower().split())
+    job_words = set(job_desc.lower().split())
+
+    overlap = resume_words.intersection(job_words)
 
     if overlap:
         return f"Matches skills like: {', '.join(list(overlap)[:5])}"
@@ -137,11 +140,7 @@ with st.sidebar:
     job_role = st.text_input("Job Title", placeholder="e.g., AI Engineer")
     location = st.text_input("Location", placeholder="e.g., New York")
 
-    resume_file = st.file_uploader(
-        "Upload Resume (PDF)",
-        type=["pdf"],
-        help="Used for semantic job matching"
-    )
+    resume_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 
     st.markdown("---")
 
@@ -189,15 +188,15 @@ if search_clicked:
                 if jobs_df.empty:
                     st.info("No jobs found.")
                 else:
+                    jobs_df["description"] = jobs_df["description"].fillna("").astype(str)
+
                     if resume_file:
                         resume_text = extract_resume_text(resume_file)
 
                         if resume_text:
                             jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
-
-                            jobs_df["match_reason"] = jobs_df.apply(
-                                lambda r: generate_match_reason(resume_text, r.get("description", "")),
-                                axis=1
+                            jobs_df["match_reason"] = jobs_df["description"].apply(
+                                lambda d: generate_match_reason(resume_text, d)
                             )
 
                             st.success("Jobs ranked using embedding-based retrieval (RAG).")
@@ -246,7 +245,6 @@ if search_clicked:
 
             except Exception as e:
                 st.error(f"Error: {str(e)}")
-
 else:
     st.info("Enter details in the sidebar to start your job search.")
 
