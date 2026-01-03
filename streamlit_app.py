@@ -177,7 +177,7 @@ if search_clicked:
                     search_term=search_term,
                     location=location,
                     results_wanted=results_wanted,
-                    hours_old=72,
+                    hours_old=48,
                     country_indeed=country
                 )
 
