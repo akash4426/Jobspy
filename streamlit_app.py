@@ -3,14 +3,17 @@ import pandas as pd
 from jobspy import scrape_jobs
 from datetime import datetime
 from pypdf import PdfReader
+
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+import faiss
+import numpy as np
 
 # -------------------------------------------------
 # Page Configuration
 # -------------------------------------------------
 st.set_page_config(
-    page_title="Job Spy - ML Powered Job Search",
+    page_title="GenAI Job Search Assistant",
     page_icon="📄",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -24,6 +27,7 @@ def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 model = load_model()
+EMBED_DIM = 384  # for all-MiniLM-L6-v2
 
 # -------------------------------------------------
 # Helper Functions
@@ -33,43 +37,94 @@ def extract_resume_text(pdf_file):
     text = ""
     for page in reader.pages:
         text += page.extract_text() or ""
-    return text
+    return text.strip()
 
 def determine_country(location_text):
     loc = location_text.lower()
-    if "india" in loc:
-        return "India"
-    if "canada" in loc:
-        return "Canada"
-    if "uk" in loc or "united kingdom" in loc:
-        return "UK"
-    if "australia" in loc:
-        return "Australia"
-    if "germany" in loc:
-        return "Germany"
-    if "france" in loc:
-        return "France"
-    if "singapore" in loc:
-        return "Singapore"
+    mapping = {
+        "india": "India",
+        "canada": "Canada",
+        "uk": "UK",
+        "united kingdom": "UK",
+        "australia": "Australia",
+        "germany": "Germany",
+        "france": "France",
+        "singapore": "Singapore",
+    }
+    for k, v in mapping.items():
+        if k in loc:
+            return v
     return "USA"
 
-def compute_match_scores(resume_text, jobs_df):
+# -------------------------------------------------
+# RAG: Chunking + Vector Index
+# -------------------------------------------------
+def chunk_text(text, chunk_size=300):
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), chunk_size):
+        chunks.append(" ".join(words[i:i + chunk_size]))
+    return chunks
+
+def build_faiss_index(text_chunks):
+    embeddings = model.encode(text_chunks, show_progress_bar=False)
+    index = faiss.IndexFlatIP(EMBED_DIM)
+    faiss.normalize_L2(embeddings)
+    index.add(embeddings)
+    return index, embeddings
+
+def rank_jobs_with_rag(resume_text, jobs_df, top_k=20):
     job_texts = jobs_df["description"].fillna("").tolist()
 
+    # Create chunks for retrieval
+    job_chunks = []
+    chunk_to_job = []
+
+    for idx, text in enumerate(job_texts):
+        chunks = chunk_text(text)
+        for ch in chunks:
+            job_chunks.append(ch)
+            chunk_to_job.append(idx)
+
+    if not job_chunks:
+        return jobs_df
+
+    index, _ = build_faiss_index(job_chunks)
+
     resume_embedding = model.encode([resume_text])
-    job_embeddings = model.encode(job_texts)
+    faiss.normalize_L2(resume_embedding)
 
-    scores = cosine_similarity(resume_embedding, job_embeddings)[0]
-    jobs_df["match_score"] = (scores * 100).round(2)
+    scores, indices = index.search(resume_embedding, k=min(top_k, len(job_chunks)))
 
-    return jobs_df
+    job_scores = {}
+    for score, idx in zip(scores[0], indices[0]):
+        job_id = chunk_to_job[idx]
+        job_scores[job_id] = max(job_scores.get(job_id, 0), score)
+
+    jobs_df["match_score"] = jobs_df.index.map(
+        lambda i: round(job_scores.get(i, 0) * 100, 2)
+    )
+
+    return jobs_df.sort_values("match_score", ascending=False)
+
+# -------------------------------------------------
+# Simple Explanation Generator (Interview-Safe)
+# -------------------------------------------------
+def generate_match_reason(resume_text, job_desc):
+    resume_keywords = set(resume_text.lower().split()[:50])
+    job_keywords = set(job_desc.lower().split())
+    overlap = resume_keywords.intersection(job_keywords)
+
+    if overlap:
+        return f"Matches skills like: {', '.join(list(overlap)[:5])}"
+    return "Semantically relevant based on overall profile similarity"
 
 # -------------------------------------------------
 # UI Header
 # -------------------------------------------------
-st.markdown("<h1 style='text-align:center'>ML-Powered Job Search Portal</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center'>GenAI-Powered Job Search Assistant</h1>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center;font-size:1.1rem'>Resume-aware job ranking using NLP</p>",
+    "<p style='text-align:center;font-size:1.05rem'>Resume-aware job ranking using embeddings and retrieval</p>",
     unsafe_allow_html=True
 )
 
@@ -79,13 +134,13 @@ st.markdown(
 with st.sidebar:
     st.markdown("### 🔍 Search Configuration")
 
-    job_role = st.text_input("Job Title", placeholder="e.g., Software Engineer")
+    job_role = st.text_input("Job Title", placeholder="e.g., AI Engineer")
     location = st.text_input("Location", placeholder="e.g., New York")
 
     resume_file = st.file_uploader(
         "Upload Resume (PDF)",
         type=["pdf"],
-        help="Used for ML-based job matching"
+        help="Used for semantic job matching"
     )
 
     st.markdown("---")
@@ -110,7 +165,7 @@ if search_clicked:
     if not job_role or not location:
         st.warning("Please enter both Job Title and Location.")
     else:
-        with st.spinner("Searching jobs and applying ML ranking..."):
+        with st.spinner("Scraping jobs and applying GenAI-based ranking..."):
             try:
                 search_term = job_role
                 if experience_level != "All Levels":
@@ -122,98 +177,62 @@ if search_clicked:
                     else determine_country(location)
                 )
 
-                params = {
-                    "site_name": ["indeed", "linkedin", "zip_recruiter", "glassdoor"],
-                    "search_term": search_term,
-                    "location": location,
-                    "results_wanted": results_wanted,
-                    "hours_old": 72,
-                    "country_indeed": country
-                }
-
-                jobs_df = scrape_jobs(**params)
+                jobs_df = scrape_jobs(
+                    site_name=["indeed", "linkedin", "zip_recruiter", "glassdoor"],
+                    search_term=search_term,
+                    location=location,
+                    results_wanted=results_wanted,
+                    hours_old=72,
+                    country_indeed=country
+                )
 
                 if jobs_df.empty:
                     st.info("No jobs found.")
                 else:
-                    # ML-based ranking
                     if resume_file:
                         resume_text = extract_resume_text(resume_file)
-                        if resume_text.strip():
-                            jobs_df = compute_match_scores(resume_text, jobs_df)
-                            jobs_df = jobs_df.sort_values("match_score", ascending=False)
-                            st.success("Jobs ranked using ML-based resume matching.")
-                    else:
-                        if "date_posted" in jobs_df.columns:
-                            jobs_df["date_posted"] = pd.to_datetime(
-                                jobs_df["date_posted"], errors="coerce"
-                            )
-                            jobs_df = jobs_df.sort_values("date_posted", ascending=False)
 
-                    # -------------------------------------------------
-                    # Results
-                    # -------------------------------------------------
+                        if resume_text:
+                            jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
+
+                            jobs_df["match_reason"] = jobs_df.apply(
+                                lambda r: generate_match_reason(resume_text, r.get("description", "")),
+                                axis=1
+                            )
+
+                            st.success("Jobs ranked using embedding-based retrieval (RAG).")
+
                     st.markdown(
-                        f"<h3 style='text-align:center'>Found {len(jobs_df)} Jobs</h3>",
+                        f"<h3 style='text-align:center'>Top {len(jobs_df)} Jobs</h3>",
                         unsafe_allow_html=True
                     )
 
-                    tab1, tab2 = st.tabs(["Card View", "Table View"])
-
-                    # ---------------- Card View ----------------
-                    with tab1:
-                        for _, row in jobs_df.iterrows():
-                            title = row.get("title", "N/A")
-                            company = row.get("company", "N/A")
-                            loc = row.get("location", "N/A")
-                            url = row.get("job_url", "#")
-                            score = row.get("match_score")
-
-                            score_html = (
-                                f"<span style='color:green;font-weight:600'>Match: {score}%</span>"
-                                if pd.notna(score)
-                                else ""
-                            )
-
-                            st.markdown(
-                                f"""
-                                <div style="
-                                    background:white;
-                                    padding:1.5rem;
-                                    border-radius:12px;
-                                    margin-bottom:1rem;
-                                    box-shadow:0 4px 12px rgba(0,0,0,0.1)
-                                ">
-                                    <a href="{url}" target="_blank"
-                                       style="font-size:1.2rem;font-weight:700">
-                                        {title}
-                                    </a>
-                                    <div>{company}</div>
-                                    <div>{loc}</div>
-                                    <div>{score_html}</div>
+                    for _, row in jobs_df.iterrows():
+                        st.markdown(
+                            f"""
+                            <div style="
+                                background:white;
+                                padding:1.5rem;
+                                border-radius:12px;
+                                margin-bottom:1rem;
+                                box-shadow:0 4px 12px rgba(0,0,0,0.08)
+                            ">
+                                <a href="{row.get('job_url', '#')}" target="_blank"
+                                   style="font-size:1.1rem;font-weight:700">
+                                    {row.get('title', 'N/A')}
+                                </a>
+                                <div>{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
+                                <div style="color:green;font-weight:600">
+                                    Match Score: {row.get('match_score', 0)}%
                                 </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-
-                    # ---------------- Table View ----------------
-                    with tab2:
-                        display_cols = [
-                            "title", "company", "location",
-                            "match_score", "site", "job_url"
-                        ]
-                        available = [c for c in display_cols if c in jobs_df.columns]
-
-                        st.dataframe(
-                            jobs_df[available],
-                            use_container_width=True,
-                            column_config={
-                                "job_url": st.column_config.LinkColumn("View Job"),
-                                "match_score": st.column_config.NumberColumn("Match %", format="%.2f")
-                            }
+                                <div style="font-size:0.9rem;color:#555">
+                                    {row.get('match_reason', '')}
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
                         )
 
-                    # ---------------- Download ----------------
                     csv = jobs_df.to_csv(index=False).encode("utf-8")
                     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -236,6 +255,6 @@ else:
 # -------------------------------------------------
 st.markdown("---")
 st.markdown(
-    "<p style='text-align:center'>Made with ❤️ by Akash Karri</p>",
+    "<p style='text-align:center'>Built by Akash Karri | GenAI + Retrieval Systems</p>",
     unsafe_allow_html=True
 )
