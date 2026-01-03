@@ -13,7 +13,7 @@ import numpy as np
 # -------------------------------------------------
 st.set_page_config(
     page_title="GenAI Job Search Assistant",
-    page_icon="📄",
+    page_icon="Favicon1.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
