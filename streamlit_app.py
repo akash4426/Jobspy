@@ -198,6 +198,13 @@ if search_clicked:
                     st.markdown(f"### Top {len(jobs_df)} Jobs")
 
                     for _, row in jobs_df.iterrows():
+                        match_reason = row.get('match_reason', '')
+                        match_reason_html = f"""
+                                <div style="font-size:0.9rem;color:#555">
+                                    {match_reason}
+                                </div>
+                        """ if match_reason else ""
+                        
                         st.markdown(
                             f"""
                             <div style="
@@ -215,9 +222,7 @@ if search_clicked:
                                 <div style="color:green;font-weight:600">
                                     Match Score: {row.get('match_score', 0)}%
                                 </div>
-                                <div style="font-size:0.9rem;color:#555">
-                                    {row.get('match_reason', '')}
-                                </div>
+                                {match_reason_html}
                             </div>
                             """,
                             unsafe_allow_html=True
