@@ -3,10 +3,10 @@ import pandas as pd
 from jobspy import scrape_jobs
 from datetime import datetime
 from pypdf import PdfReader
-
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
+import re
 
 # -------------------------------------------------
 # Page Configuration
@@ -29,8 +29,15 @@ model = load_model()
 EMBED_DIM = 384
 
 # -------------------------------------------------
-# Helper Functions
+# Utility Functions
 # -------------------------------------------------
+def clean_html(text):
+    if not isinstance(text, str):
+        return ""
+    text = re.sub(r"<.*?>", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
 def extract_resume_text(pdf_file):
     reader = PdfReader(pdf_file)
     text = ""
@@ -59,8 +66,7 @@ def determine_country(location_text):
 # RAG Utilities
 # -------------------------------------------------
 def chunk_text(text, chunk_size=300):
-    text = str(text)
-    words = text.split()
+    words = clean_html(text).split()
     return [" ".join(words[i:i + chunk_size]) for i in range(0, len(words), chunk_size)]
 
 def build_faiss_index(text_chunks):
@@ -69,18 +75,16 @@ def build_faiss_index(text_chunks):
 
     index = faiss.IndexFlatIP(EMBED_DIM)
     index.add(embeddings)
-
     return index
 
 def rank_jobs_with_rag(resume_text, jobs_df, top_k=20):
-    jobs_df["description"] = jobs_df["description"].fillna("").astype(str)
+    jobs_df["clean_description"] = jobs_df["description"].apply(clean_html)
 
     job_chunks = []
     chunk_to_job = []
 
-    for idx, desc in enumerate(jobs_df["description"]):
-        chunks = chunk_text(desc)
-        for ch in chunks:
+    for idx, desc in enumerate(jobs_df["clean_description"]):
+        for ch in chunk_text(desc):
             job_chunks.append(ch)
             chunk_to_job.append(idx)
 
@@ -110,11 +114,8 @@ def rank_jobs_with_rag(resume_text, jobs_df, top_k=20):
 # Safe Explanation Generator
 # -------------------------------------------------
 def generate_match_reason(resume_text, job_desc):
-    resume_text = str(resume_text)
-    job_desc = str(job_desc)
-
-    resume_words = set(resume_text.lower().split())
-    job_words = set(job_desc.lower().split())
+    resume_words = set(clean_html(resume_text).lower().split())
+    job_words = set(clean_html(job_desc).lower().split())
 
     overlap = resume_words.intersection(job_words)
 
@@ -127,7 +128,7 @@ def generate_match_reason(resume_text, job_desc):
 # -------------------------------------------------
 st.markdown("<h1 style='text-align:center'>GenAI-Powered Job Search Assistant</h1>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center;font-size:1.05rem'>Resume-aware job ranking using embeddings and retrieval</p>",
+    "<p style='text-align:center;font-size:1.05rem'>Resume-aware ranking using embeddings + FAISS retrieval</p>",
     unsafe_allow_html=True
 )
 
@@ -136,25 +137,20 @@ st.markdown(
 # -------------------------------------------------
 with st.sidebar:
     st.markdown("### 🔍 Search Configuration")
-
     job_role = st.text_input("Job Title", placeholder="e.g., AI Engineer")
-    location = st.text_input("Location", placeholder="e.g., New York")
-
+    location = st.text_input("Location", placeholder="e.g., Visakhapatnam, India")
     resume_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 
     st.markdown("---")
-
     results_wanted = st.slider("Number of Results", 5, 50, 15, step=5)
     experience_level = st.selectbox(
         "Experience Level",
         ["All Levels", "Entry Level", "Mid Level", "Senior Level"]
     )
-
     country_override = st.selectbox(
         "Country",
         ["Auto-detect", "USA", "India", "Canada", "UK", "Australia", "Germany", "France", "Singapore"]
     )
-
     search_clicked = st.button("Search Jobs", use_container_width=True)
 
 # -------------------------------------------------
@@ -192,19 +188,14 @@ if search_clicked:
 
                     if resume_file:
                         resume_text = extract_resume_text(resume_file)
-
                         if resume_text:
                             jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
                             jobs_df["match_reason"] = jobs_df["description"].apply(
                                 lambda d: generate_match_reason(resume_text, d)
                             )
+                            st.success("Jobs ranked using FAISS-based RAG retrieval.")
 
-                            st.success("Jobs ranked using embedding-based retrieval (RAG).")
-
-                    st.markdown(
-                        f"<h3 style='text-align:center'>Top {len(jobs_df)} Jobs</h3>",
-                        unsafe_allow_html=True
-                    )
+                    st.markdown(f"### Top {len(jobs_df)} Jobs")
 
                     for _, row in jobs_df.iterrows():
                         st.markdown(
@@ -253,6 +244,6 @@ else:
 # -------------------------------------------------
 st.markdown("---")
 st.markdown(
-    "<p style='text-align:center'>Built by Akash Karri | GenAI + Retrieval Systems</p>",
+    "<p style='text-align:center'>Built by Akash Karri | GenAI + FAISS Retrieval</p>",
     unsafe_allow_html=True
 )
