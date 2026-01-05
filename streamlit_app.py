@@ -253,16 +253,15 @@ if search:
                                style="color:#4DA6FF;font-size:1.1rem;font-weight:700">
                                 {row.get('title')}
                             </a>
-                            <div style="color:Black;font-size:1rem;font-weight:500">
+                            <div style="color:white;font-size:1rem;font-weight:500">
                                 {row.get('company')} — {row.get('location')}
-                            </div>
-                            <div style="color:Black;font-size:1rem;font-weight:500">
+                            
+                            <div style="color:white;font-size:1rem;font-weight:500">
                                 Match Score: {row.get('match_score', 0)}%
-                            </div>
+                            
                             <div style="color:gray;font-size:0.9rem">
                                 {f"Matched on: {generate_match_reason(resume_text, row['description'])}"
                                  if resume_text else ""}
-                            </div>
                         </div>
                         """,
                         unsafe_allow_html=True
