@@ -193,7 +193,7 @@ st.markdown(
 with st.sidebar:
     st.markdown("### Search Configuration")
     job_role = st.text_input("Job Title", placeholder="e.g., AI Engineer")
-    location = st.text_input("Location", placeholder="e.g., New York, USA")
+    location = st.text_input("Location", placeholder="e.g., Visakhapatnam, India")
     resume_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 
     st.markdown("---")
