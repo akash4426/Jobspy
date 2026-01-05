@@ -278,7 +278,7 @@ if search_clicked:
                                         {row.get('title', 'N/A')}
                                     </a>
                                     <div>{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
-                                    <div style="color:green;font-weight:600">
+                                    <div style="color:black;font-weight:600">
                                         Match Score: {row.get('match_score', 0)}%
                                     </div>
                                 </div>
