@@ -270,15 +270,15 @@ if search_clicked:
                         for _, row in jobs_df.iterrows():
                             st.markdown(
                                 f"""
-                                <div style="background:white;padding:1.5rem;
+                                <div style="background:black;padding:1.5rem;
                                 border-radius:12px;margin-bottom:1rem;
                                 box-shadow:0 4px 12px rgba(0,0,0,0.08)">
                                     <a href="{row.get('job_url', '#')}" target="_blank"
-                                       style="font-size:1.1rem;font-weight:700">
+                                       style="font-size:1.1rem;font-weight:700;color:#4DA6FF">
                                         {row.get('title', 'N/A')}
                                     </a>
-                                    <div>{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
-                                    <div style="color:black;font-weight:600">
+                                    <div style="color:white">{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
+                                    <div style="color:white;font-weight:600">
                                         Match Score: {row.get('match_score', 0)}%
                                     </div>
                                 </div>
