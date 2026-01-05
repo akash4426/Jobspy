@@ -83,7 +83,42 @@ def determine_country(location_text):
     return "USA"
 
 # -------------------------------------------------
-# ATS Fetchers (NEW – BACKEND ONLY)
+# Location Matching (NEW – CORE CHANGE)
+# -------------------------------------------------
+def location_match(job_location, user_location):
+    if not job_location or not user_location:
+        return True
+
+    jl = job_location.lower()
+    ul = user_location.lower()
+
+    # Always allow remote roles
+    if "remote" in jl:
+        return True
+
+    # Direct substring match
+    if ul in jl:
+        return True
+
+    country_map = {
+        "india": ["india", "in"],
+        "usa": ["united states", "usa", "us"],
+        "uk": ["united kingdom", "uk", "england"],
+        "canada": ["canada"],
+        "australia": ["australia"],
+        "germany": ["germany"],
+        "france": ["france"],
+        "singapore": ["singapore"]
+    }
+
+    for key, variants in country_map.items():
+        if ul == key and any(v in jl for v in variants):
+            return True
+
+    return False
+
+# -------------------------------------------------
+# ATS Fetchers (BACKEND ONLY)
 # -------------------------------------------------
 def fetch_lever_jobs(company):
     try:
@@ -128,7 +163,7 @@ def fetch_all_ats_jobs():
     return pd.DataFrame(jobs)
 
 # -------------------------------------------------
-# Deduplication (IN-MEMORY ONLY)
+# Deduplication (IN-MEMORY)
 # -------------------------------------------------
 def job_fingerprint(row):
     base = (
@@ -177,7 +212,7 @@ def rank_jobs_with_rag(resume_text, jobs_df):
         job_scores[mapping[i]] = max(job_scores.get(mapping[i], 0), s)
 
     jobs_df["match_score"] = jobs_df.index.map(
-        lambda i: round(job_scores.get(i, 0)*100, 2)
+        lambda i: round(job_scores.get(i, 0) * 100, 2)
     )
 
     return jobs_df.sort_values("match_score", ascending=False)
@@ -186,6 +221,10 @@ def rank_jobs_with_rag(resume_text, jobs_df):
 # UI Header (UNCHANGED)
 # -------------------------------------------------
 st.markdown("<h1 style='text-align:center'>GenAI-Powered Job Search Assistant</h1>", unsafe_allow_html=True)
+st.markdown(
+    "<p style='text-align:center;font-size:1.05rem'>FAISS + RAG | Deduplication | Internship Support</p>",
+    unsafe_allow_html=True
+)
 
 # -------------------------------------------------
 # Sidebar (UNCHANGED)
@@ -225,7 +264,12 @@ if search_clicked:
             # ATS jobs
             ats_df = fetch_all_ats_jobs()
             if not ats_df.empty:
-                ats_df = ats_df[ats_df["title"].str.contains(job_role, case=False, na=False)]
+                ats_df = ats_df[
+                    ats_df["location"].apply(lambda x: location_match(x, location))
+                ]
+                ats_df = ats_df[
+                    ats_df["title"].str.contains(job_role, case=False, na=False)
+                ]
 
             # JobSpy jobs
             jobspy_df = scrape_jobs(
@@ -243,7 +287,7 @@ if search_clicked:
             jobs_df = pd.concat([ats_df, jobspy_df], ignore_index=True)
             jobs_df["description"] = jobs_df["description"].fillna("")
 
-            # Dedup in-memory
+            # Deduplication
             jobs_df["job_id"] = jobs_df.apply(job_fingerprint, axis=1)
             jobs_df = jobs_df.drop_duplicates("job_id")
 
@@ -263,7 +307,9 @@ if search_clicked:
                            style="font-size:1.1rem;font-weight:700;color:#4DA6FF">
                             {row.get('title', 'N/A')}
                         </a>
-                        <div style="color:white">{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
+                        <div style="color:white">
+                            {row.get('company', 'N/A')} — {row.get('location', 'N/A')}
+                        </div>
                         <div style="color:white;font-weight:600">
                             Match Score: {row.get('match_score', 0)}%
                         </div>
