@@ -5,7 +5,6 @@ from datetime import datetime
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 import faiss
-import numpy as np
 import re
 import hashlib
 import os
@@ -36,7 +35,7 @@ def load_model():
 model = load_model()
 
 # -------------------------------------------------
-# Embedding Cache (MAJOR OPTIMIZATION)
+# Embedding Cache
 # -------------------------------------------------
 @st.cache_data(show_spinner=False)
 def embed_texts(texts):
@@ -63,11 +62,17 @@ def extract_resume_text(pdf_file):
 
 def determine_country(location_text):
     loc = str(location_text).lower()
-    for k, v in {
-        "india": "India", "canada": "Canada", "uk": "UK",
-        "united kingdom": "UK", "australia": "Australia",
-        "germany": "Germany", "france": "France", "singapore": "Singapore"
-    }.items():
+    mapping = {
+        "india": "India",
+        "canada": "Canada",
+        "uk": "UK",
+        "united kingdom": "UK",
+        "australia": "Australia",
+        "germany": "Germany",
+        "france": "France",
+        "singapore": "Singapore"
+    }
+    for k, v in mapping.items():
         if k in loc:
             return v
     return "USA"
@@ -109,12 +114,14 @@ def infer_posted_days(text):
 def filter_by_experience(df, level):
     if level == "All Levels":
         return df
+
     keywords = {
         "Internship": ["intern", "internship", "trainee", "student"],
         "Entry Level": ["entry", "junior", "associate", "graduate", "fresher"],
         "Mid Level": ["mid", "intermediate", "2+", "3+"],
         "Senior Level": ["senior", "lead", "principal", "staff", "architect"]
     }.get(level, [])
+
     pattern = "|".join(keywords)
     return df[
         df["title"].str.lower().str.contains(pattern, na=False) |
@@ -126,7 +133,7 @@ def filter_by_experience(df, level):
 # -------------------------------------------------
 def chunk_text(text, size=300):
     words = clean_html(text).split()
-    return [" ".join(words[i:i+size]) for i in range(0, len(words), size)]
+    return [" ".join(words[i:i + size]) for i in range(0, len(words), size)]
 
 def build_faiss_index(chunks):
     embeddings = embed_texts(chunks)
@@ -142,7 +149,8 @@ def rank_jobs_with_rag(resume_text, df, top_k=20):
 
     for idx, row in df.iterrows():
         chunks.append(row["clean_title"])
-        mapping.append((idx, 1.5))
+        mapping.append((idx, 1.5))  # title weight
+
         for ch in chunk_text(row["clean_desc"]):
             chunks.append(ch)
             mapping.append((idx, 1.0))
@@ -157,7 +165,9 @@ def rank_jobs_with_rag(resume_text, df, top_k=20):
         job_idx, weight = mapping[i]
         job_scores[job_idx] = max(job_scores.get(job_idx, 0), score * weight)
 
-    df["match_score"] = df.index.map(lambda i: round(job_scores.get(i, 0) * 100, 2))
+    df["match_score"] = df.index.map(
+        lambda i: round(job_scores.get(i, 0) * 100, 2)
+    )
     return df.sort_values("match_score", ascending=False)
 
 def generate_match_reason(resume, desc):
@@ -166,18 +176,27 @@ def generate_match_reason(resume, desc):
     return ", ".join(list(r & d)[:5])
 
 # -------------------------------------------------
-# UI
+# UI Header
 # -------------------------------------------------
 st.markdown("<h1 style='text-align:center'>GenAI Job Search Assistant</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center'>FAISS + RAG | Smart Dedup | Internship-Ready</p>", unsafe_allow_html=True)
 
+# -------------------------------------------------
+# Sidebar
+# -------------------------------------------------
 with st.sidebar:
     job_role = st.text_input("Job Title")
     location = st.text_input("Location")
     resume_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
     results_wanted = st.slider("Results", 5, 50, 15, 5)
-    experience = st.selectbox("Experience", ["All Levels","Internship","Entry Level","Mid Level","Senior Level"])
-    country_override = st.selectbox("Country", ["Auto-detect","USA","India","Canada","UK","Australia","Germany","France","Singapore"])
+    experience = st.selectbox(
+        "Experience Level",
+        ["All Levels", "Internship", "Entry Level", "Mid Level", "Senior Level"]
+    )
+    country_override = st.selectbox(
+        "Country",
+        ["Auto-detect", "USA", "India", "Canada", "UK", "Australia", "Germany", "France", "Singapore"]
+    )
     search = st.button("Search Jobs", use_container_width=True)
 
 # -------------------------------------------------
@@ -185,12 +204,15 @@ with st.sidebar:
 # -------------------------------------------------
 if search:
     if not job_role or not location:
-        st.warning("Please fill Job Title and Location.")
+        st.warning("Please enter Job Title and Location.")
     else:
+        resume_text = None  # 🔥 CRITICAL FIX
+
         with st.spinner("Fetching and ranking jobs..."):
             country = country_override if country_override != "Auto-detect" else determine_country(location)
+
             jobs_df = scrape_jobs(
-                site_name=["indeed","linkedin"],
+                site_name=["indeed", "linkedin"],
                 search_term=job_role,
                 location=location,
                 results_wanted=results_wanted,
@@ -202,6 +224,7 @@ if search:
                 st.info("No jobs found.")
             else:
                 jobs_df["description"] = jobs_df["description"].fillna("")
+
                 jobs_df = filter_by_experience(jobs_df, experience)
 
                 jobs_df["job_id"] = jobs_df.apply(job_fingerprint, axis=1)
@@ -209,11 +232,14 @@ if search:
                 jobs_df = jobs_df[~jobs_df["job_id"].isin(seen)]
 
                 jobs_df["posted_days"] = jobs_df["description"].apply(infer_posted_days)
-                jobs_df = jobs_df[(jobs_df["posted_days"].isna()) | (jobs_df["posted_days"] <= 3)]
+                jobs_df = jobs_df[
+                    (jobs_df["posted_days"].isna()) | (jobs_df["posted_days"] <= 3)
+                ]
 
                 if resume_file:
                     resume_text = extract_resume_text(resume_file)
-                    jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
+                    if resume_text:
+                        jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
 
                 save_seen_jobs(seen.union(set(jobs_df["job_id"])))
 
@@ -222,14 +248,20 @@ if search:
                 for _, row in jobs_df.iterrows():
                     st.markdown(
                         f"""
-                        <div style="background:black;padding:1.5rem;border-radius:12px;margin-bottom:1rem">
-                            <a href="{row.get('job_url','#')}" target="_blank" style="color:#4DA6FF;font-size:1.1rem;font-weight:700">
+                        <div style="background:#0e1117;padding:1.5rem;border-radius:12px;margin-bottom:1rem">
+                            <a href="{row.get('job_url','#')}" target="_blank"
+                               style="color:#4DA6FF;font-size:1.1rem;font-weight:700">
                                 {row.get('title')}
                             </a>
-                            <div style="color:white">{row.get('company')} — {row.get('location')}</div>
-                            <div style="color:white">Match Score: {row.get('match_score',0)}%</div>
+                            <div style="color:Black;font-size:1rem;font-weight:500">
+                                {row.get('company')} — {row.get('location')}
+                            </div>
+                            <div style="color:Black;font-size:1rem;font-weight:500">
+                                Match Score: {row.get('match_score', 0)}%
+                            </div>
                             <div style="color:gray;font-size:0.9rem">
-                                Matched on: {generate_match_reason(resume_text, row["description"])}
+                                {f"Matched on: {generate_match_reason(resume_text, row['description'])}"
+                                 if resume_text else ""}
                             </div>
                         </div>
                         """,
@@ -237,7 +269,7 @@ if search:
                     )
 
                 st.download_button(
-                    "Download CSV",
+                    "Download Results (CSV)",
                     jobs_df.to_csv(index=False).encode("utf-8"),
                     f"jobs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                     "text/csv",
