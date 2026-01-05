@@ -7,6 +7,8 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 import re
+import hashlib
+import os
 
 # -------------------------------------------------
 # Page Configuration
@@ -19,6 +21,12 @@ st.set_page_config(
 )
 
 # -------------------------------------------------
+# Constants
+# -------------------------------------------------
+EMBED_DIM = 384
+SEEN_JOBS_FILE = "seen_jobs.csv"
+
+# -------------------------------------------------
 # Load ML Model (Cached)
 # -------------------------------------------------
 @st.cache_resource
@@ -26,7 +34,6 @@ def load_model():
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 model = load_model()
-EMBED_DIM = 384
 
 # -------------------------------------------------
 # Utility Functions
@@ -63,6 +70,43 @@ def determine_country(location_text):
     return "USA"
 
 # -------------------------------------------------
+# Job Deduplication & Persistence
+# -------------------------------------------------
+def job_fingerprint(row):
+    base = (
+        str(row.get("title", "")).lower().strip() +
+        str(row.get("company", "")).lower().strip() +
+        str(row.get("location", "")).lower().strip()
+    )
+    return hashlib.md5(base.encode()).hexdigest()
+
+def load_seen_jobs():
+    if os.path.exists(SEEN_JOBS_FILE):
+        return set(pd.read_csv(SEEN_JOBS_FILE)["job_id"])
+    return set()
+
+def save_seen_jobs(job_ids):
+    pd.DataFrame({"job_id": list(job_ids)}).to_csv(SEEN_JOBS_FILE, index=False)
+
+# -------------------------------------------------
+# Freshness Heuristic
+# -------------------------------------------------
+def infer_posted_days(text):
+    if not isinstance(text, str):
+        return None
+
+    text = text.lower()
+
+    if "today" in text or "just posted" in text:
+        return 0
+
+    match = re.search(r"(\d+)\s+day", text)
+    if match:
+        return int(match.group(1))
+
+    return None
+
+# -------------------------------------------------
 # RAG Utilities
 # -------------------------------------------------
 def chunk_text(text, chunk_size=300):
@@ -72,7 +116,6 @@ def chunk_text(text, chunk_size=300):
 def build_faiss_index(text_chunks):
     embeddings = model.encode(text_chunks, show_progress_bar=False)
     faiss.normalize_L2(embeddings)
-
     index = faiss.IndexFlatIP(EMBED_DIM)
     index.add(embeddings)
     return index
@@ -111,24 +154,11 @@ def rank_jobs_with_rag(resume_text, jobs_df, top_k=20):
     return jobs_df.sort_values("match_score", ascending=False)
 
 # -------------------------------------------------
-# Safe Explanation Generator
-# -------------------------------------------------
-def generate_match_reason(resume_text, job_desc):
-    resume_words = set(clean_html(resume_text).lower().split())
-    job_words = set(clean_html(job_desc).lower().split())
-
-    overlap = resume_words.intersection(job_words)
-
-    if overlap:
-        return f"Matches skills like: {', '.join(list(overlap)[:5])}"
-    return "Semantically relevant based on overall profile similarity"
-
-# -------------------------------------------------
 # UI Header
 # -------------------------------------------------
 st.markdown("<h1 style='text-align:center'>GenAI-Powered Job Search Assistant</h1>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center;font-size:1.05rem'>Resume-aware ranking using embeddings + FAISS retrieval</p>",
+    "<p style='text-align:center;font-size:1.05rem'>Resume-aware ranking with FAISS + deduplication</p>",
     unsafe_allow_html=True
 )
 
@@ -136,7 +166,7 @@ st.markdown(
 # Sidebar
 # -------------------------------------------------
 with st.sidebar:
-    st.markdown("### 🔍 Search Configuration")
+    st.markdown("### Search Configuration")
     job_role = st.text_input("Job Title", placeholder="e.g., AI Engineer")
     location = st.text_input("Location", placeholder="e.g., Visakhapatnam, India")
     resume_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
@@ -160,7 +190,7 @@ if search_clicked:
     if not job_role or not location:
         st.warning("Please enter both Job Title and Location.")
     else:
-        with st.spinner("Scraping jobs and applying GenAI-based ranking..."):
+        with st.spinner("Scraping, deduplicating, and ranking jobs..."):
             try:
                 search_term = job_role
                 if experience_level != "All Levels":
@@ -186,47 +216,66 @@ if search_clicked:
                 else:
                     jobs_df["description"] = jobs_df["description"].fillna("").astype(str)
 
-                    if resume_file:
-                        resume_text = extract_resume_text(resume_file)
-                        if resume_text:
-                            jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
-                            st.success("Jobs ranked using FAISS-based RAG retrieval.")
+                    # Generate job IDs
+                    jobs_df["job_id"] = jobs_df.apply(job_fingerprint, axis=1)
 
-                    st.markdown(f"### Top {len(jobs_df)} Jobs")
+                    # Remove previously seen jobs
+                    seen_jobs = load_seen_jobs()
+                    jobs_df = jobs_df[~jobs_df["job_id"].isin(seen_jobs)]
 
-                    for _, row in jobs_df.iterrows():
-                        st.markdown(
-                            f"""
-                            <div style="
-                                background:white;
-                                padding:1.5rem;
-                                border-radius:12px;
-                                margin-bottom:1rem;
-                                box-shadow:0 4px 12px rgba(0,0,0,0.08)
-                            ">
-                                <a href="{row.get('job_url', '#')}" target="_blank"
-                                   style="font-size:1.1rem;font-weight:700">
-                                    {row.get('title', 'N/A')}
-                                </a>
-                                <div>{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
-                                <div style="color:green;font-weight:600">
-                                    Match Score: {row.get('match_score', 0)}%
+                    # Freshness filtering
+                    jobs_df["posted_days"] = jobs_df["description"].apply(infer_posted_days)
+                    jobs_df = jobs_df[
+                        (jobs_df["posted_days"].isna()) | (jobs_df["posted_days"] <= 3)
+                    ]
+
+                    if jobs_df.empty:
+                        st.info("Only duplicate or stale jobs were found.")
+                    else:
+                        # Save new job IDs
+                        save_seen_jobs(seen_jobs.union(set(jobs_df["job_id"])))
+
+                        if resume_file:
+                            resume_text = extract_resume_text(resume_file)
+                            if resume_text:
+                                jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
+                                st.success("Jobs ranked using FAISS-based RAG.")
+
+                        st.markdown(f"### Fresh Jobs Found: {len(jobs_df)}")
+
+                        for _, row in jobs_df.iterrows():
+                            st.markdown(
+                                f"""
+                                <div style="
+                                    background:white;
+                                    padding:1.5rem;
+                                    border-radius:12px;
+                                    margin-bottom:1rem;
+                                    box-shadow:0 4px 12px rgba(0,0,0,0.08)
+                                ">
+                                    <a href="{row.get('job_url', '#')}" target="_blank"
+                                       style="font-size:1.1rem;font-weight:700">
+                                        {row.get('title', 'N/A')}
+                                    </a>
+                                    <div>{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
+                                    <div style="color:green;font-weight:600">
+                                        Match Score: {row.get('match_score', 0)}%
+                                    </div>
                                 </div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
+                                """,
+                                unsafe_allow_html=True
+                            )
+
+                        csv = jobs_df.to_csv(index=False).encode("utf-8")
+                        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+                        st.download_button(
+                            "Download Results (CSV)",
+                            csv,
+                            f"job_results_{ts}.csv",
+                            "text/csv",
+                            use_container_width=True
                         )
-
-                    csv = jobs_df.to_csv(index=False).encode("utf-8")
-                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-                    st.download_button(
-                        "Download Results (CSV)",
-                        csv,
-                        f"job_results_{ts}.csv",
-                        "text/csv",
-                        use_container_width=True
-                    )
 
             except Exception as e:
                 st.error(f"Error: {str(e)}")
