@@ -254,10 +254,10 @@ if search_clicked:
                                     box-shadow:0 4px 12px rgba(0,0,0,0.08)
                                 ">
                                     <a href="{row.get('job_url', '#')}" target="_blank"
-                                       style="font-size:1.1rem;font-weight:700">
+                                       style="font-size:1.1rem;font-weight:700;color:black">
                                         {row.get('title', 'N/A')}
                                     </a>
-                                    <div>{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
+                                    <div style="color:black">{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
                                     <div style="color:green;font-weight:600">
                                         Match Score: {row.get('match_score', 0)}%
                                     </div>
