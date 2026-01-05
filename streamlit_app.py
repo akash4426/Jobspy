@@ -227,7 +227,7 @@ if search_clicked:
                 )
 
                 jobs_df = scrape_jobs(
-                    site_name=["indeed", "linkedin", "zip_recruiter", "glassdoor"],
+                    site_name=["indeed", "linkedin"],
                     search_term=job_role,
                     location=location,
                     results_wanted=results_wanted,
