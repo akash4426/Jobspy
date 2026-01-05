@@ -63,14 +63,9 @@ def extract_resume_text(pdf_file):
 def determine_country(location_text):
     loc = str(location_text).lower()
     mapping = {
-        "india": "India",
-        "canada": "Canada",
-        "uk": "UK",
-        "united kingdom": "UK",
-        "australia": "Australia",
-        "germany": "Germany",
-        "france": "France",
-        "singapore": "Singapore"
+        "india": "India", "canada": "Canada", "uk": "UK",
+        "united kingdom": "UK", "australia": "Australia",
+        "germany": "Germany", "france": "France", "singapore": "Singapore"
     }
     for k, v in mapping.items():
         if k in loc:
@@ -150,7 +145,6 @@ def rank_jobs_with_rag(resume_text, df, top_k=20):
     for idx, row in df.iterrows():
         chunks.append(row["clean_title"])
         mapping.append((idx, 1.5))  # title weight
-
         for ch in chunk_text(row["clean_desc"]):
             chunks.append(ch)
             mapping.append((idx, 1.0))
@@ -173,13 +167,14 @@ def rank_jobs_with_rag(resume_text, df, top_k=20):
 def generate_match_reason(resume, desc):
     r = set(clean_html(resume).lower().split())
     d = set(clean_html(desc).lower().split())
-    return ", ".join(list(r & d)[:5])
+    overlap = list(r & d)
+    return ", ".join(overlap[:5])
 
 # -------------------------------------------------
 # UI Header
 # -------------------------------------------------
 st.markdown("<h1 style='text-align:center'>GenAI Job Search Assistant</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center'>FAISS + RAG | Smart Dedup | Internship-Ready</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center'>FAISS + RAG | Clean Explainability | Internship-Ready</p>", unsafe_allow_html=True)
 
 # -------------------------------------------------
 # Sidebar
@@ -206,7 +201,7 @@ if search:
     if not job_role or not location:
         st.warning("Please enter Job Title and Location.")
     else:
-        resume_text = None  # 🔥 CRITICAL FIX
+        resume_text = None
 
         with st.spinner("Fetching and ranking jobs..."):
             country = country_override if country_override != "Auto-detect" else determine_country(location)
@@ -224,7 +219,6 @@ if search:
                 st.info("No jobs found.")
             else:
                 jobs_df["description"] = jobs_df["description"].fillna("")
-
                 jobs_df = filter_by_experience(jobs_df, experience)
 
                 jobs_df["job_id"] = jobs_df.apply(job_fingerprint, axis=1)
@@ -246,6 +240,17 @@ if search:
                 st.markdown(f"### Jobs Found: {len(jobs_df)}")
 
                 for _, row in jobs_df.iterrows():
+
+                    explanation_html = ""
+                    if resume_text:
+                        reason = generate_match_reason(resume_text, row["description"])
+                        if reason:
+                            explanation_html = f"""
+                            <div style="color:gray;font-size:0.9rem">
+                                Matched on skills like: {reason}
+                            </div>
+                            """
+
                     st.markdown(
                         f"""
                         <div style="background:#0e1117;padding:1.5rem;border-radius:12px;margin-bottom:1rem">
@@ -253,16 +258,13 @@ if search:
                                style="color:#4DA6FF;font-size:1.1rem;font-weight:700">
                                 {row.get('title')}
                             </a>
-                            <div style="color:white;font-size:1rem;font-weight:500">
+                            <div style="color:white">
                                 {row.get('company')} — {row.get('location')}
                             </div>
-                            <div style="color:white;font-size:1rem;font-weight:500">
+                            <div style="color:white">
                                 Match Score: {row.get('match_score', 0)}%
                             </div>
-                            <div style="color:gray;font-size:0.9rem">
-                                {f"Matched on: {generate_match_reason(resume_text, row['description'])}"
-                                 if resume_text else ""}
-                            </div>
+                            {explanation_html}
                         </div>
                         """,
                         unsafe_allow_html=True
