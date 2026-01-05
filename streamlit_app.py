@@ -180,8 +180,8 @@ st.markdown("<p style='text-align:center'>FAISS + RAG | Clean Explainability | I
 # Sidebar
 # -------------------------------------------------
 with st.sidebar:
-    job_role = st.text_input("Job Title")
-    location = st.text_input("Location")
+    job_role = st.text_input("Job Title",placeholder="e.g., Data Scientist, Software Engineer")
+    location = st.text_input("Location",placeholder="e.g., Hyderabad, India")
     resume_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
     results_wanted = st.slider("Results", 5, 50, 15, 5)
     experience = st.selectbox(
