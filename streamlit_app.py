@@ -5,10 +5,9 @@ from datetime import datetime
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 import faiss
-import numpy as np
 import re
 import hashlib
-import os
+import requests
 
 # -------------------------------------------------
 # Page Configuration
@@ -24,10 +23,29 @@ st.set_page_config(
 # Constants
 # -------------------------------------------------
 EMBED_DIM = 384
-SEEN_JOBS_FILE = "seen_jobs.csv"
 
 # -------------------------------------------------
-# Load ML Model (Cached)
+# ATS Companies – Data / AI / ML (50+)
+# -------------------------------------------------
+ATS_COMPANIES = {
+    "lever": [
+        "scaleai","figma","canva","duolingo","webflow","postman","posthog",
+        "segment","plaid","brex","shopify","algolia","datarobot","paxos",
+        "supabase","vercel","linear","netlify","airbyte","fivetran",
+        "rudderstack","montecarlodata","weightsandbiases","cohere",
+        "stabilityai","cerebras","perplexityai","huggingface"
+    ],
+    "greenhouse": [
+        "databricks","snowflake","datadog","airbnb","uber","lyft",
+        "dropbox","twilio","github","elastic","cloudflare","mongodb",
+        "palantir","pinterest","spotify","reddit","zoom","square",
+        "hashicorp","gitlab","digitalocean","openai","anthropic",
+        "amplitude","mixpanel"
+    ]
+}
+
+# -------------------------------------------------
+# Load Model
 # -------------------------------------------------
 @st.cache_resource
 def load_model():
@@ -47,266 +65,170 @@ def clean_html(text):
 
 def extract_resume_text(pdf_file):
     reader = PdfReader(pdf_file)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text() or ""
-    return text.strip()
+    return " ".join(page.extract_text() or "" for page in reader.pages)
 
 def determine_country(location_text):
     loc = str(location_text).lower()
-    mapping = {
-        "india": "India",
-        "canada": "Canada",
-        "uk": "UK",
-        "united kingdom": "UK",
-        "australia": "Australia",
-        "germany": "Germany",
-        "france": "France",
-        "singapore": "Singapore",
-    }
-    for k, v in mapping.items():
+    for k, v in {
+        "india": "India", "canada": "Canada", "uk": "UK",
+        "united kingdom": "UK", "australia": "Australia",
+        "germany": "Germany", "france": "France", "singapore": "Singapore"
+    }.items():
         if k in loc:
             return v
     return "USA"
 
 # -------------------------------------------------
-# Job Deduplication
+# ATS Fetchers (SAFE)
+# -------------------------------------------------
+def fetch_lever_jobs(company):
+    url = f"https://api.lever.co/v0/postings/{company}?mode=json"
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code != 200:
+            return []
+        return [{
+            "title": j.get("text"),
+            "company": company.title(),
+            "location": j.get("categories", {}).get("location", ""),
+            "description": clean_html(j.get("description", "")),
+            "job_url": j.get("hostedUrl"),
+            "source": "Lever"
+        } for j in r.json()]
+    except Exception:
+        return []
+
+def fetch_greenhouse_jobs(company):
+    url = f"https://boards-api.greenhouse.io/v1/boards/{company}/jobs"
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code != 200:
+            return []
+        return [{
+            "title": j.get("title"),
+            "company": company.title(),
+            "location": j.get("location", {}).get("name", ""),
+            "description": clean_html(j.get("content", "")),
+            "job_url": j.get("absolute_url"),
+            "source": "Greenhouse"
+        } for j in r.json().get("jobs", [])]
+    except Exception:
+        return []
+
+def fetch_all_ats_jobs():
+    jobs = []
+    for c in ATS_COMPANIES["lever"]:
+        jobs.extend(fetch_lever_jobs(c))
+    for c in ATS_COMPANIES["greenhouse"]:
+        jobs.extend(fetch_greenhouse_jobs(c))
+    return pd.DataFrame(jobs)
+
+# -------------------------------------------------
+# Deduplication (Single-run only)
 # -------------------------------------------------
 def job_fingerprint(row):
-    base = (
-        str(row.get("title", "")).lower().strip() +
-        str(row.get("company", "")).lower().strip() +
-        str(row.get("location", "")).lower().strip()
-    )
-    return hashlib.md5(base.encode()).hexdigest()
-
-def load_seen_jobs():
-    if os.path.exists(SEEN_JOBS_FILE):
-        return set(pd.read_csv(SEEN_JOBS_FILE)["job_id"])
-    return set()
-
-def save_seen_jobs(job_ids):
-    pd.DataFrame({"job_id": list(job_ids)}).to_csv(SEEN_JOBS_FILE, index=False)
+    key = f"{row.get('title','')}{row.get('company','')}{row.get('location','')}".lower()
+    return hashlib.md5(key.encode()).hexdigest()
 
 # -------------------------------------------------
-# Freshness Heuristic
+# FAISS RAG Ranking (DEFENSIVE)
 # -------------------------------------------------
-def infer_posted_days(text):
-    if not isinstance(text, str):
-        return None
-
-    text = text.lower()
-
-    if "today" in text or "just posted" in text:
-        return 0
-
-    match = re.search(r"(\d+)\s+day", text)
-    if match:
-        return int(match.group(1))
-
-    return None
-
-# -------------------------------------------------
-# Experience Level Filter (EXACT)
-# -------------------------------------------------
-def filter_by_experience(jobs_df, experience_level):
-    if experience_level == "All Levels":
-        return jobs_df
-
-    title = jobs_df["title"].str.lower().fillna("")
-    desc = jobs_df["description"].str.lower().fillna("")
-
-    if experience_level == "Internship":
-        keywords = ["intern", "internship", "trainee", "student"]
-
-    elif experience_level == "Entry Level":
-        keywords = ["entry", "junior", "associate", "graduate", "fresher"]
-
-    elif experience_level == "Mid Level":
-        keywords = ["mid", "intermediate", "ii", "2+", "3+"]
-
-    elif experience_level == "Senior Level":
-        keywords = ["senior", "lead", "principal", "staff", "architect"]
-
-    pattern = "|".join(keywords)
-    mask = title.str.contains(pattern) | desc.str.contains(pattern)
-    return jobs_df[mask]
-
-# -------------------------------------------------
-# RAG Utilities
-# -------------------------------------------------
-def chunk_text(text, chunk_size=300):
+def chunk_text(text, size=300):
     words = clean_html(text).split()
-    return [" ".join(words[i:i + chunk_size]) for i in range(0, len(words), chunk_size)]
+    return [" ".join(words[i:i+size]) for i in range(0, len(words), size)]
 
-def build_faiss_index(text_chunks):
-    embeddings = model.encode(text_chunks, show_progress_bar=False)
-    faiss.normalize_L2(embeddings)
+def rank_jobs_with_rag(resume_text, df):
+    if not resume_text or df.empty:
+        df["match_score"] = 0
+        return df
+
+    chunks, mapping = [], []
+    for idx, row in df.iterrows():
+        for ch in chunk_text(row["description"]):
+            if ch.strip():
+                chunks.append(ch)
+                mapping.append(idx)
+
+    if not chunks:
+        df["match_score"] = 0
+        return df
+
+    emb = model.encode(chunks, show_progress_bar=False)
+    faiss.normalize_L2(emb)
     index = faiss.IndexFlatIP(EMBED_DIM)
-    index.add(embeddings)
-    return index
+    index.add(emb)
 
-def rank_jobs_with_rag(resume_text, jobs_df, top_k=20):
-    jobs_df["clean_description"] = jobs_df["description"].apply(clean_html)
+    r_emb = model.encode([resume_text])
+    faiss.normalize_L2(r_emb)
 
-    job_chunks, chunk_to_job = [], []
-
-    for idx, desc in enumerate(jobs_df["clean_description"]):
-        for ch in chunk_text(desc):
-            job_chunks.append(ch)
-            chunk_to_job.append(idx)
-
-    if not job_chunks:
-        jobs_df["match_score"] = 0
-        return jobs_df
-
-    index = build_faiss_index(job_chunks)
-
-    resume_embedding = model.encode([resume_text])
-    faiss.normalize_L2(resume_embedding)
-
-    scores, indices = index.search(resume_embedding, min(top_k, len(job_chunks)))
+    scores, idxs = index.search(r_emb, min(20, len(chunks)))
 
     job_scores = {}
-    for score, idx in zip(scores[0], indices[0]):
-        job_id = chunk_to_job[idx]
-        job_scores[job_id] = max(job_scores.get(job_id, 0), score)
+    for s, i in zip(scores[0], idxs[0]):
+        job_scores[mapping[i]] = max(job_scores.get(mapping[i], 0), s)
 
-    jobs_df["match_score"] = jobs_df.index.map(
-        lambda i: round(job_scores.get(i, 0) * 100, 2)
-    )
-
-    return jobs_df.sort_values("match_score", ascending=False)
+    df["match_score"] = df.index.map(lambda i: round(job_scores.get(i, 0) * 100, 2))
+    return df.sort_values("match_score", ascending=False)
 
 # -------------------------------------------------
-# UI Header
+# UI
 # -------------------------------------------------
-st.markdown("<h1 style='text-align:center'>GenAI-Powered Job Search Assistant</h1>", unsafe_allow_html=True)
-st.markdown(
-    "<p style='text-align:center;font-size:1.05rem'>FAISS + RAG | Deduplication | Internship Support</p>",
-    unsafe_allow_html=True
-)
+st.markdown("<h1 style='text-align:center'>GenAI Job Search Assistant</h1>", unsafe_allow_html=True)
 
-# -------------------------------------------------
-# Sidebar
-# -------------------------------------------------
 with st.sidebar:
-    st.markdown("### Search Configuration")
-    job_role = st.text_input("Job Title", placeholder="e.g., AI Engineer")
-    location = st.text_input("Location", placeholder="e.g., Visakhapatnam, India")
+    job_role = st.text_input(placeholder="e.g., Data Scientist, ML Engineer", label="Job Role")
+    location = st.text_input(placeholder="e.g., Hyderabad, Remote", label="Location")
     resume_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
-
-    st.markdown("---")
-    results_wanted = st.slider("Number of Results", 5, 50, 15, step=5)
-
-    experience_level = st.selectbox(
-        "Experience Level",
-        ["All Levels", "Internship", "Entry Level", "Mid Level", "Senior Level"]
-    )
-
-    country_override = st.selectbox(
-        "Country",
-        ["Auto-detect", "USA", "India", "Canada", "UK", "Australia", "Germany", "France", "Singapore"]
-    )
-
-    search_clicked = st.button("Search Jobs", use_container_width=True)
+    results = st.slider("Results", 10, 50, 25)
+    search = st.button("Search Jobs", use_container_width=True)
 
 # -------------------------------------------------
 # Main Logic
 # -------------------------------------------------
-if search_clicked:
-    if not job_role or not location:
-        st.warning("Please enter both Job Title and Location.")
-    else:
-        with st.spinner("Scraping, filtering, and ranking jobs..."):
-            try:
-                country = (
-                    country_override
-                    if country_override != "Auto-detect"
-                    else determine_country(location)
-                )
+if search:
+    with st.spinner(f"Fetching {job_role} roles from Job Boards..."):
 
-                jobs_df = scrape_jobs(
-                    site_name=["indeed", "linkedin"],
-                    search_term=job_role,
-                    location=location,
-                    results_wanted=results_wanted,
-                    hours_old=48,
-                    country_indeed=country
-                )
+        ats_df = fetch_all_ats_jobs()
+        ats_df = ats_df[ats_df["title"].str.contains(job_role, case=False, na=False)]
 
-                if jobs_df.empty:
-                    st.info("No jobs found.")
-                else:
-                    jobs_df["description"] = jobs_df["description"].fillna("").astype(str)
+        jobspy_df = scrape_jobs(
+            site_name=["indeed", "linkedin"],
+            search_term=job_role,
+            location=location,
+            results_wanted=results,
+            hours_old=48,
+            country_indeed=determine_country(location)
+        )
 
-                    # Experience filtering (EXACT)
-                    jobs_df = filter_by_experience(jobs_df, experience_level)
+        if not jobspy_df.empty:
+            jobspy_df["source"] = "JobBoard"
 
-                    # Deduplication
-                    jobs_df["job_id"] = jobs_df.apply(job_fingerprint, axis=1)
-                    seen_jobs = load_seen_jobs()
-                    jobs_df = jobs_df[~jobs_df["job_id"].isin(seen_jobs)]
+        jobs_df = pd.concat([ats_df, jobspy_df], ignore_index=True)
+        jobs_df["description"] = jobs_df["description"].fillna("")
 
-                    # Freshness filter
-                    jobs_df["posted_days"] = jobs_df["description"].apply(infer_posted_days)
-                    jobs_df = jobs_df[
-                        (jobs_df["posted_days"].isna()) | (jobs_df["posted_days"] <= 3)
-                    ]
+        # Dedup within this run
+        jobs_df["job_id"] = jobs_df.apply(job_fingerprint, axis=1)
+        jobs_df = jobs_df.drop_duplicates("job_id")
 
-                    if jobs_df.empty:
-                        st.info("Only duplicate or stale jobs were found.")
-                    else:
-                        save_seen_jobs(seen_jobs.union(set(jobs_df["job_id"])))
+        resume_text = extract_resume_text(resume_file) if resume_file else None
+        jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
 
-                        if resume_file:
-                            resume_text = extract_resume_text(resume_file)
-                            if resume_text:
-                                jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
-                                st.success("Jobs ranked using FAISS-based RAG.")
+        st.markdown(f"### Jobs Found: {len(jobs_df)}")
 
-                        st.markdown(f"### Jobs Found: {len(jobs_df)}")
-
-                        for _, row in jobs_df.iterrows():
-                            st.markdown(
-                                f"""
-                                <div style="background:black;padding:1.5rem;
-                                border-radius:12px;margin-bottom:1rem;
-                                box-shadow:0 4px 12px rgba(0,0,0,0.08)">
-                                    <a href="{row.get('job_url', '#')}" target="_blank"
-                                       style="font-size:1.1rem;font-weight:700;color:#4DA6FF">
-                                        {row.get('title', 'N/A')}
-                                    </a>
-                                    <div style="color:white">{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
-                                    <div style="color:white;font-weight:600">
-                                        Match Score: {row.get('match_score', 0)}%
-                                    </div>
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-
-                        csv = jobs_df.to_csv(index=False).encode("utf-8")
-                        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-                        st.download_button(
-                            "Download Results (CSV)",
-                            csv,
-                            f"job_results_{ts}.csv",
-                            "text/csv",
-                            use_container_width=True
-                        )
-
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-else:
-    st.info("Enter details in the sidebar to start your job search.")
+        for _, r in jobs_df.iterrows():
+            st.markdown(
+                f"""
+                **{r['title']}**  
+                {r['company']} — {r['location']}  
+                Source: {r['source']}  
+                Match Score: {r.get('match_score',0)}%  
+                [Apply here]({r['job_url']})
+                ---
+                """
+            )
 
 # -------------------------------------------------
 # Footer
 # -------------------------------------------------
 st.markdown("---")
-st.markdown(
-    "<p style='text-align:center'>Built by Akash Karri | GenAI + FAISS Retrieval</p>",
-    unsafe_allow_html=True
-)
+st.markdown("<p style='text-align:center'>Built by Akash Karri | GenAI Job Search</p>", unsafe_allow_html=True)
