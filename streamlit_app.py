@@ -70,7 +70,7 @@ def determine_country(location_text):
     return "USA"
 
 # -------------------------------------------------
-# Job Deduplication & Persistence
+# Job Deduplication
 # -------------------------------------------------
 def job_fingerprint(row):
     base = (
@@ -107,6 +107,32 @@ def infer_posted_days(text):
     return None
 
 # -------------------------------------------------
+# Experience Level Filter (EXACT)
+# -------------------------------------------------
+def filter_by_experience(jobs_df, experience_level):
+    if experience_level == "All Levels":
+        return jobs_df
+
+    title = jobs_df["title"].str.lower().fillna("")
+    desc = jobs_df["description"].str.lower().fillna("")
+
+    if experience_level == "Internship":
+        keywords = ["intern", "internship", "trainee", "student"]
+
+    elif experience_level == "Entry Level":
+        keywords = ["entry", "junior", "associate", "graduate", "fresher"]
+
+    elif experience_level == "Mid Level":
+        keywords = ["mid", "intermediate", "ii", "2+", "3+"]
+
+    elif experience_level == "Senior Level":
+        keywords = ["senior", "lead", "principal", "staff", "architect"]
+
+    pattern = "|".join(keywords)
+    mask = title.str.contains(pattern) | desc.str.contains(pattern)
+    return jobs_df[mask]
+
+# -------------------------------------------------
 # RAG Utilities
 # -------------------------------------------------
 def chunk_text(text, chunk_size=300):
@@ -123,8 +149,7 @@ def build_faiss_index(text_chunks):
 def rank_jobs_with_rag(resume_text, jobs_df, top_k=20):
     jobs_df["clean_description"] = jobs_df["description"].apply(clean_html)
 
-    job_chunks = []
-    chunk_to_job = []
+    job_chunks, chunk_to_job = [], []
 
     for idx, desc in enumerate(jobs_df["clean_description"]):
         for ch in chunk_text(desc):
@@ -158,7 +183,7 @@ def rank_jobs_with_rag(resume_text, jobs_df, top_k=20):
 # -------------------------------------------------
 st.markdown("<h1 style='text-align:center'>GenAI-Powered Job Search Assistant</h1>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center;font-size:1.05rem'>Resume-aware ranking with FAISS + deduplication</p>",
+    "<p style='text-align:center;font-size:1.05rem'>FAISS + RAG | Deduplication | Internship Support</p>",
     unsafe_allow_html=True
 )
 
@@ -168,19 +193,22 @@ st.markdown(
 with st.sidebar:
     st.markdown("### Search Configuration")
     job_role = st.text_input("Job Title", placeholder="e.g., AI Engineer")
-    location = st.text_input("Location", placeholder="e.g., Visakhapatnam, India")
+    location = st.text_input("Location", placeholder="e.g., New York, USA")
     resume_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
 
     st.markdown("---")
     results_wanted = st.slider("Number of Results", 5, 50, 15, step=5)
+
     experience_level = st.selectbox(
         "Experience Level",
-        ["All Levels", "Entry Level", "Mid Level", "Senior Level"]
+        ["All Levels", "Internship", "Entry Level", "Mid Level", "Senior Level"]
     )
+
     country_override = st.selectbox(
         "Country",
         ["Auto-detect", "USA", "India", "Canada", "UK", "Australia", "Germany", "France", "Singapore"]
     )
+
     search_clicked = st.button("Search Jobs", use_container_width=True)
 
 # -------------------------------------------------
@@ -190,12 +218,8 @@ if search_clicked:
     if not job_role or not location:
         st.warning("Please enter both Job Title and Location.")
     else:
-        with st.spinner("Scraping, deduplicating, and ranking jobs..."):
+        with st.spinner("Scraping, filtering, and ranking jobs..."):
             try:
-                search_term = job_role
-                if experience_level != "All Levels":
-                    search_term = f"{experience_level.lower()} {job_role}"
-
                 country = (
                     country_override
                     if country_override != "Auto-detect"
@@ -204,7 +228,7 @@ if search_clicked:
 
                 jobs_df = scrape_jobs(
                     site_name=["indeed", "linkedin", "zip_recruiter", "glassdoor"],
-                    search_term=search_term,
+                    search_term=job_role,
                     location=location,
                     results_wanted=results_wanted,
                     hours_old=48,
@@ -216,14 +240,15 @@ if search_clicked:
                 else:
                     jobs_df["description"] = jobs_df["description"].fillna("").astype(str)
 
-                    # Generate job IDs
-                    jobs_df["job_id"] = jobs_df.apply(job_fingerprint, axis=1)
+                    # Experience filtering (EXACT)
+                    jobs_df = filter_by_experience(jobs_df, experience_level)
 
-                    # Remove previously seen jobs
+                    # Deduplication
+                    jobs_df["job_id"] = jobs_df.apply(job_fingerprint, axis=1)
                     seen_jobs = load_seen_jobs()
                     jobs_df = jobs_df[~jobs_df["job_id"].isin(seen_jobs)]
 
-                    # Freshness filtering
+                    # Freshness filter
                     jobs_df["posted_days"] = jobs_df["description"].apply(infer_posted_days)
                     jobs_df = jobs_df[
                         (jobs_df["posted_days"].isna()) | (jobs_df["posted_days"] <= 3)
@@ -232,7 +257,6 @@ if search_clicked:
                     if jobs_df.empty:
                         st.info("Only duplicate or stale jobs were found.")
                     else:
-                        # Save new job IDs
                         save_seen_jobs(seen_jobs.union(set(jobs_df["job_id"])))
 
                         if resume_file:
@@ -241,23 +265,19 @@ if search_clicked:
                                 jobs_df = rank_jobs_with_rag(resume_text, jobs_df)
                                 st.success("Jobs ranked using FAISS-based RAG.")
 
-                        st.markdown(f"### Fresh Jobs Found: {len(jobs_df)}")
+                        st.markdown(f"### Jobs Found: {len(jobs_df)}")
 
                         for _, row in jobs_df.iterrows():
                             st.markdown(
                                 f"""
-                                <div style="
-                                    background:white;
-                                    padding:1.5rem;
-                                    border-radius:12px;
-                                    margin-bottom:1rem;
-                                    box-shadow:0 4px 12px rgba(0,0,0,0.08)
-                                ">
+                                <div style="background:white;padding:1.5rem;
+                                border-radius:12px;margin-bottom:1rem;
+                                box-shadow:0 4px 12px rgba(0,0,0,0.08)">
                                     <a href="{row.get('job_url', '#')}" target="_blank"
-                                       style="font-size:1.1rem;font-weight:700;color:black">
+                                       style="font-size:1.1rem;font-weight:700">
                                         {row.get('title', 'N/A')}
                                     </a>
-                                    <div style="color:black">{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
+                                    <div>{row.get('company', 'N/A')} — {row.get('location', 'N/A')}</div>
                                     <div style="color:green;font-weight:600">
                                         Match Score: {row.get('match_score', 0)}%
                                     </div>
