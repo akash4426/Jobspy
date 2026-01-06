@@ -14,7 +14,7 @@ import requests
 # -------------------------------------------------
 st.set_page_config(
     page_title="GenAI Job Search Assistant",
-    page_icon="Favicon1.png",
+    page_icon="jobspy.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
