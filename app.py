@@ -17,7 +17,8 @@ from io import StringIO
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'jobspy-secret-key-change-in-production')
+import secrets as _secrets
+app.secret_key = os.getenv('SECRET_KEY') or _secrets.token_hex(32)
 
 # Email Configuration (users should set these as environment variables)
 SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
