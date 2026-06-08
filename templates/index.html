@@ -1,1336 +1,1213 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="JobSpy - AI-powered job search with instant email notifications. Find your dream job across multiple platforms.">
-    <meta name="keywords" content="job search, career, employment, job alerts, email notifications">
-    <title>JobSpy - Smart Job Search with Email Notifications</title>
+    <meta name="description" content="JobSpy — Find real jobs across Indeed, LinkedIn, ZipRecruiter and Glassdoor. Get instant results or email alerts for your dream role.">
+    <title>JobSpy — Find Your Next Role</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+
     <style>
-        * {
+        *, *::before, *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --primary-light: #818cf8;
-            --secondary: #ec4899;
-            --accent: #14b8a6;
-            --success: #10b981;
-            --error: #ef4444;
-            --warning: #f59e0b;
-            
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            --text-primary: #f1f5f9;
-            --text-secondary: #cbd5e1;
-            --text-muted: #94a3b8;
-            
-            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-            --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
-            --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.25);
-            
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --bg:        #0a0d14;
+            --bg-card:   #111827;
+            --bg-input:  #141b2d;
+            --border:    #1e293b;
+            --border-hi: #334155;
+            --indigo:    #6366f1;
+            --indigo-lo: #4f46e5;
+            --indigo-hi: #818cf8;
+            --rose:      #f43f5e;
+            --teal:      #2dd4bf;
+            --amber:     #fbbf24;
+            --green:     #22c55e;
+            --text:      #e2e8f0;
+            --text-2:    #94a3b8;
+            --text-3:    #475569;
+            --radius:    14px;
+            --radius-lg: 20px;
         }
 
-        [data-theme="light"] {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
-            --bg-tertiary: #f1f5f9;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #64748b;
-            --glass-bg: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(0, 0, 0, 0.1);
-        }
+        html { scroll-behavior: smooth; }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            position: relative;
-            overflow-x: hidden;
-            transition: background 0.3s ease, color 0.3s ease;
+            line-height: 1.6;
         }
 
-        /* Animated Background */
-        .background-animation {
+        /* ── Noise texture overlay ── */
+        body::before {
+            content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            overflow: hidden;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
             pointer-events: none;
+            z-index: 0;
+            opacity: 0.4;
         }
 
-        .gradient-orb {
-            position: absolute;
+        /* ── Ambient glow ── */
+        .glow-1, .glow-2 {
+            position: fixed;
             border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.5;
-            animation: float 20s infinite ease-in-out;
+            filter: blur(120px);
+            pointer-events: none;
+            z-index: 0;
         }
-
-        .orb-1 {
-            width: 400px;
-            height: 400px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            top: -200px;
-            left: -200px;
-            animation-delay: 0s;
+        .glow-1 {
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%);
+            top: -200px; left: -150px;
+            animation: drift1 18s ease-in-out infinite;
         }
-
-        .orb-2 {
-            width: 350px;
-            height: 350px;
-            background: linear-gradient(135deg, var(--accent), var(--primary));
-            bottom: -100px;
-            right: -100px;
-            animation-delay: 2s;
+        .glow-2 {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(244,63,94,0.12) 0%, transparent 70%);
+            bottom: -100px; right: -100px;
+            animation: drift2 22s ease-in-out infinite;
         }
+        @keyframes drift1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(40px,30px); } }
+        @keyframes drift2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-30px,-40px); } }
 
-        .orb-3 {
-            width: 300px;
-            height: 300px;
-            background: linear-gradient(135deg, var(--secondary), var(--accent));
-            top: 50%;
-            right: 10%;
-            animation-delay: 4s;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(30px, -30px) scale(1.1); }
-            66% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-
-        .container {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid var(--glass-border);
-            border-radius: 32px;
-            padding: 48px;
-            max-width: 700px;
-            width: 100%;
+        /* ── Layout ── */
+        .page {
             position: relative;
             z-index: 1;
-            box-shadow: var(--shadow-2xl);
-            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
         }
 
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(40px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Theme Toggle */
-        .theme-toggle {
-            position: absolute;
-            top: 24px;
-            right: 24px;
-            width: 60px;
-            height: 32px;
-            background: var(--bg-tertiary);
-            border-radius: 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid var(--glass-border);
+        /* ── Nav ── */
+        nav {
             display: flex;
             align-items: center;
-            padding: 4px;
+            justify-content: space-between;
+            padding: 28px 0 40px;
         }
 
-        .theme-toggle:hover {
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Sora', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--text);
+            text-decoration: none;
+            letter-spacing: -0.5px;
         }
 
-        .theme-toggle-slider {
-            width: 24px;
-            height: 24px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+        .nav-logo-dot {
+            width: 8px; height: 8px;
+            background: var(--indigo);
             border-radius: 50%;
-            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 0 12px var(--indigo);
+            animation: blink 2s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .nav-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(99,102,241,0.1);
+            border: 1px solid rgba(99,102,241,0.25);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--indigo-hi);
+            letter-spacing: 0.3px;
+        }
+
+        .status-dot {
+            width: 6px; height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        /* ── Hero ── */
+        .hero {
+            text-align: center;
+            padding: 20px 0 48px;
+        }
+
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border: 1px solid var(--border-hi);
+            border-radius: 100px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-2);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+
+        .hero h1 {
+            font-family: 'Sora', sans-serif;
+            font-size: clamp(2.2rem, 6vw, 3.8rem);
+            font-weight: 800;
+            line-height: 1.12;
+            letter-spacing: -2px;
+            color: var(--text);
+            margin-bottom: 20px;
+        }
+
+        .hero h1 em {
+            font-style: normal;
+            background: linear-gradient(135deg, var(--indigo-hi) 0%, var(--rose) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            color: var(--text-2);
+            max-width: 520px;
+            margin: 0 auto 40px;
+            font-weight: 400;
+        }
+
+        .platform-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
         }
 
-        [data-theme="light"] .theme-toggle-slider {
-            transform: translateX(28px);
+        .platform-chip {
+            padding: 5px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-2);
         }
 
-        .header {
-            text-align: center;
+        /* ── Search card ── */
+        .search-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
             margin-bottom: 40px;
-            position: relative;
         }
 
-        .logo-wrapper {
-            display: inline-flex;
-            align-items: center;
+        .search-tabs {
+            display: flex;
+            gap: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 5px;
+            margin-bottom: 28px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 16px;
+            background: none;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-2);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .tab-btn.active {
+            background: var(--bg-card);
+            color: var(--text);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        }
+
+        .tab-btn:hover:not(.active) {
+            color: var(--text);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 16px;
             margin-bottom: 16px;
         }
 
-        .logo-icon {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 16px;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            animation: pulse 2s ease-in-out infinite;
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3); }
-            50% { transform: scale(1.05); box-shadow: 0 12px 32px rgba(99, 102, 241, 0.5); }
-        }
-
-        .header h1 {
-            font-family: 'Poppins', sans-serif;
-            font-size: 3.5em;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary-light), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -2px;
-            margin-bottom: 12px;
-            position: relative;
-            display: inline-block;
-        }
-
-        .header h1::after {
-            content: '';
-            position: absolute;
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60%;
-            height: 4px;
-            background: linear-gradient(90deg, transparent, var(--primary), transparent);
-            border-radius: 2px;
-        }
-
-        .header p {
-            color: var(--text-secondary);
-            font-size: 1.15em;
-            font-weight: 500;
-        }
-
-        .platforms-showcase {
-            display: flex;
-            justify-content: center;
-            gap: 16px;
-            margin: 32px 0;
-            flex-wrap: wrap;
-        }
-
-        .platform-badge {
-            background: var(--bg-secondary);
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-size: 0.9em;
-            font-weight: 600;
-            color: var(--text-primary);
-            border: 1px solid var(--glass-border);
-            transition: all 0.3s ease;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .platform-badge::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.2), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .platform-badge:hover::before {
-            left: 100%;
-        }
-
-        .platform-badge:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
-            border-color: var(--primary);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 40px;
-        }
-
-        .stat-card {
-            background: var(--bg-secondary);
-            padding: 20px;
-            border-radius: 16px;
-            text-align: center;
-            border: 1px solid var(--glass-border);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
-            transform: scaleX(0);
-            transition: transform 0.3s ease;
-        }
-
-        .stat-card:hover::before {
-            transform: scaleX(1);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
-        }
-
-        .stat-number {
-            font-size: 2.5em;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-family: 'Poppins', sans-serif;
-        }
-
-        .stat-label {
-            font-size: 0.85em;
-            color: var(--text-muted);
-            margin-top: 8px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
         .form-group {
-            margin-bottom: 28px;
-            animation: fadeInUp 0.6s ease backwards;
-        }
-
-        .form-group:nth-child(1) { animation-delay: 0.1s; }
-        .form-group:nth-child(2) { animation-delay: 0.15s; }
-        .form-group:nth-child(3) { animation-delay: 0.2s; }
-        .form-group:nth-child(4) { animation-delay: 0.25s; }
-        .form-group:nth-child(5) { animation-delay: 0.3s; }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        label {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            color: var(--text-primary);
-            font-weight: 700;
-            margin-bottom: 12px;
-            font-size: 0.95em;
-            transition: color 0.2s;
-        }
-
-        .label-left {
-            display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 8px;
         }
 
-        .char-counter {
-            font-size: 0.8em;
-            color: var(--text-muted);
-            font-weight: 500;
+        .form-group.full { grid-column: 1 / -1; }
+
+        label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-2);
+            letter-spacing: 0.3px;
         }
 
-        .emoji {
-            display: none;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
-        }
-
-        .input-wrapper {
+        .input-wrap {
             position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.9rem;
+            pointer-events: none;
+            opacity: 0.6;
         }
 
         input[type="text"],
         input[type="email"],
-        input[type="number"],
         select {
             width: 100%;
-            padding: 16px 20px;
-            background: var(--bg-secondary);
-            border: 2px solid var(--glass-border);
-            border-radius: 14px;
-            font-size: 16px;
+            padding: 12px 16px 12px 40px;
+            background: var(--bg-input);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.9rem;
             font-family: 'Inter', sans-serif;
-            color: var(--text-primary);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             font-weight: 500;
-        }
-
-        input::placeholder {
-            color: var(--text-muted);
-        }
-
-        input:hover,
-        select:hover {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-        }
-
-        input:focus,
-        select:focus {
+            color: var(--text);
+            transition: border-color 0.2s, box-shadow 0.2s;
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2), 0 8px 16px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
+        }
+
+        input::placeholder { color: var(--text-3); }
+
+        input:focus, select:focus {
+            border-color: var(--indigo);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
         }
 
         select {
             cursor: pointer;
             appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 16px center;
-            background-size: 20px;
-            padding-right: 48px;
+            background-position: right 14px center;
+            padding-right: 40px;
         }
 
-        .input-icon {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 1.2em;
-            pointer-events: none;
-        }
+        select option { background: #111827; }
 
-        .input-hint {
-            font-size: 0.85em;
-            color: var(--text-muted);
-            margin-top: 8px;
+        /* Slider row */
+        .slider-row {
             display: flex;
             align-items: center;
-            gap: 6px;
-            opacity: 0;
-            transition: opacity 0.3s ease;
+            gap: 16px;
+            margin-bottom: 16px;
         }
 
-        input:focus ~ .input-hint,
-        select:focus + .input-hint {
-            opacity: 1;
+        .slider-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-2);
+            white-space: nowrap;
         }
 
-        .range-slider {
-            width: 100%;
-            margin-top: 12px;
+        .slider-val {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--indigo-hi);
+            min-width: 28px;
+            text-align: right;
         }
 
         input[type="range"] {
-            width: 100%;
-            height: 6px;
-            background: var(--bg-tertiary);
-            border-radius: 3px;
+            flex: 1;
+            height: 5px;
+            background: var(--border-hi);
+            border-radius: 4px;
             outline: none;
             -webkit-appearance: none;
+            border: none;
+            padding: 0;
+            box-shadow: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            width: 18px; height: 18px;
+            background: var(--indigo);
             border-radius: 50%;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-            transition: all 0.2s ease;
+            box-shadow: 0 0 8px rgba(99,102,241,0.5);
         }
 
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.6);
+        /* Email panel */
+        .email-panel {
+            margin-bottom: 16px;
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.35s ease, opacity 0.3s ease, margin 0.3s ease;
+            opacity: 0;
         }
 
-        .btn-wrapper {
-            margin-top: 36px;
+        .email-panel.open {
+            max-height: 100px;
+            opacity: 1;
+        }
+
+        /* Buttons */
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
         }
 
         .btn {
-            width: 100%;
-            padding: 20px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
+            flex: 1;
+            padding: 14px 24px;
             border: none;
-            border-radius: 14px;
-            font-size: 17px;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
             font-weight: 700;
+            font-family: 'Inter', sans-serif;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
-            font-family: 'Poppins', sans-serif;
+            transition: all 0.2s;
+            letter-spacing: 0.2px;
         }
 
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            transition: left 0.5s ease;
+        .btn-primary {
+            background: linear-gradient(135deg, var(--indigo) 0%, var(--indigo-lo) 100%);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.35);
         }
 
-        .btn:hover::before {
-            left: 100%;
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(99,102,241,0.5);
         }
 
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 32px rgba(99, 102, 241, 0.6);
-        }
+        .btn-primary:active { transform: translateY(0); }
 
-        .btn:active {
-            transform: translateY(-1px);
-        }
-
-        .btn:disabled {
-            background: var(--bg-tertiary);
+        .btn-primary:disabled {
+            opacity: 0.5;
             cursor: not-allowed;
             transform: none;
-            box-shadow: none;
         }
 
-        .loading {
+        .btn-secondary {
+            background: var(--bg);
+            border: 1.5px solid var(--border-hi);
+            color: var(--text-2);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            border-color: var(--indigo);
+            color: var(--indigo-hi);
+        }
+
+        /* ── Loading ── */
+        .loading-bar {
+            height: 2px;
+            background: linear-gradient(90deg, var(--indigo), var(--rose), var(--teal));
+            background-size: 200% 100%;
+            animation: shimmer 1.5s linear infinite;
+            border-radius: 2px;
+            margin-bottom: 24px;
             display: none;
+        }
+
+        .loading-bar.active { display: block; }
+
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+        .loading-state {
             text-align: center;
-            margin-top: 32px;
-            padding: 32px;
-            background: var(--bg-secondary);
-            border-radius: 20px;
-            border: 1px solid var(--glass-border);
+            padding: 48px 20px;
+            display: none;
         }
 
-        .loading.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .spinner-container {
-            position: relative;
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 24px;
-        }
+        .loading-state.active { display: block; }
 
         .spinner {
-            width: 80px;
-            height: 80px;
-            border: 4px solid var(--glass-border);
-            border-top: 4px solid var(--primary);
-            border-right: 4px solid var(--secondary);
+            width: 44px; height: 44px;
+            border: 3px solid var(--border-hi);
+            border-top-color: var(--indigo);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .loading-text {
-            color: var(--text-primary);
+        .loading-state h3 {
+            font-size: 1.05rem;
             font-weight: 600;
-            font-size: 1.1em;
-            margin-bottom: 12px;
+            color: var(--text);
+            margin-bottom: 8px;
         }
 
-        .loading-subtext {
-            color: var(--text-muted);
-            font-size: 0.9em;
+        .loading-state p {
+            font-size: 0.85rem;
+            color: var(--text-2);
         }
 
-        .progress-dots {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 16px;
-        }
-
-        .dot {
-            width: 8px;
-            height: 8px;
-            background: var(--primary);
-            border-radius: 50%;
-            animation: dotPulse 1.4s ease-in-out infinite;
-        }
-
-        .dot:nth-child(2) { animation-delay: 0.2s; }
-        .dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes dotPulse {
-            0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
-            40% { transform: scale(1); opacity: 1; }
-        }
-
-        .message {
-            margin-top: 28px;
-            padding: 24px;
-            border-radius: 16px;
+        /* ── Alert banner ── */
+        .alert {
             display: none;
+            padding: 16px 20px;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
             font-weight: 500;
-            position: relative;
-            overflow: hidden;
-            border: 2px solid transparent;
+            margin-bottom: 24px;
+            border: 1px solid transparent;
         }
 
-        .message::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: currentColor;
+        .alert.active { display: flex; align-items: flex-start; gap: 12px; }
+
+        .alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+        .alert-body { flex: 1; }
+
+        .alert-title { font-weight: 700; margin-bottom: 2px; }
+
+        .alert.success {
+            background: rgba(34,197,94,0.08);
+            border-color: rgba(34,197,94,0.25);
+            color: #4ade80;
         }
 
-        .message.active {
-            display: block;
-            animation: slideInRight 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        .alert.error {
+            background: rgba(244,63,94,0.08);
+            border-color: rgba(244,63,94,0.25);
+            color: #fb7185;
         }
 
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+        .alert.info {
+            background: rgba(99,102,241,0.08);
+            border-color: rgba(99,102,241,0.25);
+            color: var(--indigo-hi);
         }
 
-        .message.success {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--success);
-            border-color: var(--success);
-        }
-
-        .message.error {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--error);
-            border-color: var(--error);
-        }
-
-        .message strong {
-            font-size: 1.15em;
-            display: block;
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-
-        .close-btn {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: none;
-            border: none;
-            font-size: 1.8em;
-            cursor: pointer;
+        .alert-close {
+            background: none; border: none;
             color: currentColor;
+            cursor: pointer;
             opacity: 0.6;
-            transition: all 0.2s;
-            padding: 4px;
-            line-height: 1;
-            width: 32px;
-            height: 32px;
+            font-size: 1.1rem;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .alert-close:hover { opacity: 1; }
+
+        /* ── Results section ── */
+        .results-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            border-radius: 8px;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
-        .close-btn:hover {
-            opacity: 1;
-            background: rgba(0, 0, 0, 0.1);
-            transform: rotate(90deg);
+        .results-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text);
         }
 
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin-top: 40px;
+        .results-count {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-2);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 4px 12px;
+            border-radius: 100px;
         }
 
-        .feature-card {
-            background: var(--bg-secondary);
-            padding: 20px;
-            border-radius: 16px;
-            text-align: center;
-            border: 1px solid var(--glass-border);
-            transition: all 0.3s ease;
+        .results-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* ── Job card ── */
+        .job-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
             position: relative;
             overflow: hidden;
         }
 
-        .feature-card::before {
+        .job-card::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            inset: 0;
+            background: linear-gradient(135deg, rgba(99,102,241,0.05) 0%, transparent 60%);
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.2s;
         }
 
-        .feature-card:hover::before {
-            opacity: 0.1;
+        .job-card:hover { border-color: var(--border-hi); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+        .job-card:hover::before { opacity: 1; }
+
+        .job-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 14px;
         }
 
-        .feature-card:hover {
-            transform: translateY(-6px) scale(1.02);
-            box-shadow: 0 12px 32px rgba(99, 102, 241, 0.3);
-            border-color: var(--primary);
-        }
+        .job-card-info { flex: 1; min-width: 0; }
 
-        .feature-icon {
-            font-size: 2.5em;
-            margin-bottom: 12px;
-            display: block;
-            position: relative;
-            z-index: 1;
-        }
-
-        .feature-title {
+        .job-title-link {
+            font-size: 1.05rem;
             font-weight: 700;
-            color: var(--text-primary);
-            font-size: 0.95em;
-            position: relative;
-            z-index: 1;
+            color: var(--text);
+            text-decoration: none;
+            display: block;
+            margin-bottom: 6px;
+            transition: color 0.15s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .feature-desc {
-            font-size: 0.8em;
-            color: var(--text-muted);
-            margin-top: 8px;
-            position: relative;
-            z-index: 1;
+        .job-title-link:hover { color: var(--indigo-hi); }
+
+        .job-company {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-2);
         }
 
-        @media (max-width: 768px) {
-            .container {
-                padding: 32px 24px;
-            }
-
-            .header h1 {
-                font-size: 2.5em;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-                gap: 12px;
-            }
-
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .platforms-showcase {
-                flex-direction: column;
-            }
+        .job-badge {
+            flex-shrink: 0;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
         }
 
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
+        .badge-indeed   { background: rgba(255,255,255,0.07); color: #94a3b8; }
+        .badge-linkedin { background: rgba(10,102,194,0.15);  color: #60a5fa; }
+        .badge-glassdoor { background: rgba(0,188,74,0.1);   color: #4ade80; }
+        .badge-zip_recruiter { background: rgba(251,191,36,0.1); color: #fbbf24; }
+
+        .job-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
         }
 
-        /* Particle effect */
-        .particles {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            color: var(--text-2);
+            font-weight: 500;
         }
 
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: var(--primary);
-            border-radius: 50%;
-            opacity: 0.3;
-            animation: particleFloat 8s linear infinite;
+        .meta-icon { font-size: 0.85rem; opacity: 0.7; }
+
+        .salary-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            background: rgba(34,197,94,0.1);
+            border: 1px solid rgba(34,197,94,0.2);
+            border-radius: 100px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #4ade80;
         }
 
-        @keyframes particleFloat {
-            0% {
-                transform: translateY(100vh) translateX(0) rotate(0deg);
-                opacity: 0;
-            }
-            10% {
-                opacity: 0.3;
-            }
-            90% {
-                opacity: 0.3;
-            }
-            100% {
-                transform: translateY(-100vh) translateX(50px) rotate(360deg);
-                opacity: 0;
-            }
+        .remote-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            background: rgba(45,212,191,0.08);
+            border: 1px solid rgba(45,212,191,0.2);
+            border-radius: 100px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--teal);
         }
+
+        .job-description {
+            font-size: 0.84rem;
+            color: var(--text-2);
+            line-height: 1.65;
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .job-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .date-chip {
+            font-size: 0.75rem;
+            color: var(--text-3);
+            font-weight: 500;
+        }
+
+        .apply-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 18px;
+            background: rgba(99,102,241,0.12);
+            border: 1px solid rgba(99,102,241,0.25);
+            border-radius: 100px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--indigo-hi);
+            text-decoration: none;
+            transition: all 0.18s;
+        }
+
+        .apply-btn:hover {
+            background: rgba(99,102,241,0.22);
+            border-color: var(--indigo-hi);
+            transform: translateX(2px);
+        }
+
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 64px 20px;
+            display: none;
+        }
+
+        .empty-state.active { display: block; }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            display: block;
+            opacity: 0.4;
+        }
+
+        .empty-state h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-2);
+            margin-bottom: 8px;
+        }
+
+        .empty-state p { font-size: 0.875rem; color: var(--text-3); }
+
+        /* ── Footer ── */
+        .footer {
+            margin-top: 60px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .footer p { font-size: 0.8rem; color: var(--text-3); }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-links span {
+            font-size: 0.8rem;
+            color: var(--text-3);
+        }
+
+        /* ── Skeleton loader ── */
+        .skeleton-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+        }
+
+        .skeleton-line {
+            background: linear-gradient(90deg, var(--border) 25%, var(--border-hi) 50%, var(--border) 75%);
+            background-size: 200% 100%;
+            animation: skeleton 1.5s ease-in-out infinite;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        @keyframes skeleton {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .page { padding: 0 16px 60px; }
+            .form-row { grid-template-columns: 1fr; }
+            .btn-row { flex-direction: column; }
+            .hero h1 { letter-spacing: -1px; }
+            .search-card { padding: 20px; }
+            .job-card { padding: 18px; }
+            .results-header { flex-direction: column; align-items: flex-start; }
+            .job-card-top { flex-direction: column; gap: 10px; }
+        }
+
+        /* ── Enter animation ── */
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .job-card { animation: cardIn 0.35s ease both; }
     </style>
 </head>
 <body>
-    <!-- Background Animation -->
-    <div class="background-animation">
-        <div class="gradient-orb orb-1"></div>
-        <div class="gradient-orb orb-2"></div>
-        <div class="gradient-orb orb-3"></div>
-    </div>
 
-    <!-- Particles -->
-    <div class="particles" id="particles"></div>
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
 
-    <div class="container">
-        <!-- Theme Toggle -->
-        <div class="theme-toggle" id="themeToggle" title="Toggle theme">
-            <div class="theme-toggle-slider">🌙</div>
-        </div>
+    <div class="page">
 
-        <div class="header">
-            <div class="logo-wrapper">
-                <div class="logo-icon">🎯</div>
+        <!-- Nav -->
+        <nav>
+            <a href="/" class="nav-logo">
+                <div class="nav-logo-dot"></div>
+                JobSpy
+            </a>
+            <div class="nav-pill">
+                <div class="status-dot"></div>
+                Live job data
             </div>
-            <h1>JobSpy</h1>
-            <p>AI-Powered Job Search Across Multiple Platforms</p>
-        </div>
+        </nav>
 
-        <div class="platforms-showcase">
-            <div class="platform-badge">Indeed</div>
-            <div class="platform-badge">LinkedIn</div>
-            <div class="platform-badge">ZipRecruiter</div>
-            <div class="platform-badge">Glassdoor</div>
-        </div>
-
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number">4</div>
-                <div class="stat-label">Platforms</div>
+        <!-- Hero -->
+        <div class="hero">
+            <div class="hero-eyebrow">
+                <span>🔍</span>
+                Search across 4 platforms at once
             </div>
-            <div class="stat-card">
-                <div class="stat-number">1000+</div>
-                <div class="stat-label">Jobs Daily</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">24/7</div>
-                <div class="stat-label">Monitoring</div>
+            <h1>Your next job<br>is <em>one search away</em></h1>
+            <p>Real-time listings from Indeed, LinkedIn, ZipRecruiter and Glassdoor — searched together, shown instantly.</p>
+            <div class="platform-row">
+                <span class="platform-chip">Indeed</span>
+                <span class="platform-chip">LinkedIn</span>
+                <span class="platform-chip">ZipRecruiter</span>
+                <span class="platform-chip">Glassdoor</span>
             </div>
         </div>
 
-        <form id="jobSearchForm">
-            <div class="form-group">
-                <label>
-                    <span class="label-left">
-                        <span class="emoji">💼</span>
-                        Job Role / Title
-                    </span>
-                    <span class="char-counter" id="roleCounter">0/100</span>
-                </label>
-                <div class="input-wrapper">
-                    <input 
-                        type="text" 
-                        id="job_role" 
-                        name="job_role" 
-                        placeholder="e.g., Software Engineer, Data Analyst, Marketing Manager"
-                        required
-                        autocomplete="off"
-                        maxlength="100"
-                    >
-                </div>
-                <div class="input-hint">Be specific for better results</div>
-            </div>
+        <!-- Search Card -->
+        <div class="search-card">
 
-            <div class="form-group">
-                <label>
-                    <span class="label-left">
-                        <span class="emoji">📍</span>
-                        Location
-                    </span>
-                    <span class="char-counter" id="locationCounter">13/100</span>
-                </label>
-                <div class="input-wrapper">
-                    <input 
-                        type="text" 
-                        id="location" 
-                        name="location" 
-                        placeholder="e.g., New York, Mumbai, Remote, London"
-                        value="United States"
-                        required
-                        autocomplete="off"
-                        maxlength="100"
-                    >
-                </div>
-                <div class="input-hint">Supports USA, India, Canada, UK, Australia & more</div>
-            </div>
-
-            <div class="form-group">
-                <label>
-                    <span class="label-left">
-                        <span class="emoji">✉️</span>
-                        Email Address
-                    </span>
-                </label>
-                <div class="input-wrapper">
-                    <input 
-                        type="email" 
-                        id="email" 
-                        name="email" 
-                        placeholder="your.email@example.com"
-                        required
-                        autocomplete="email"
-                    >
-                </div>
-                <div class="input-hint">Job alerts will be sent here</div>
-            </div>
-
-            <div class="form-group">
-                <label>
-                    <span class="label-left">
-                        <span class="emoji">🎓</span>
-                        Experience Level
-                    </span>
-                </label>
-                <select 
-                    id="experience_level" 
-                    name="experience_level"
-                >
-                    <option value="all">All Experience Levels</option>
-                    <option value="entry_level">Entry Level (0-2 years)</option>
-                    <option value="mid_level">Mid Level (3-5 years)</option>
-                    <option value="senior_level">Senior Level (5+ years)</option>
-                    <option value="internship">Internship</option>
-                </select>
-                <div class="input-hint">Filter by career stage</div>
-            </div>
-
-            <div class="form-group">
-                <label>
-                    <span class="label-left">
-                        <span class="emoji">🔢</span>
-                        Number of Results
-                    </span>
-                    <span class="char-counter" id="resultsValue">10</span>
-                </label>
-                <input 
-                    type="range" 
-                    id="results_wanted" 
-                    name="results_wanted" 
-                    value="10"
-                    min="1"
-                    max="100"
-                    class="range-slider"
-                >
-                <div class="input-hint">Maximum: 100 results per search</div>
-            </div>
-
-            <div class="btn-wrapper">
-                <button type="submit" class="btn" id="submitBtn">
-                    <span>Search & Send to Email</span>
+            <!-- Tabs -->
+            <div class="search-tabs">
+                <button class="tab-btn active" id="tabShow" onclick="switchTab('show')">
+                    Show results here
+                </button>
+                <button class="tab-btn" id="tabEmail" onclick="switchTab('email')">
+                    Email me the results
                 </button>
             </div>
-        </form>
 
-        <div class="loading" id="loading">
-            <div class="spinner-container">
-                <div class="spinner"></div>
+            <!-- Loading bar -->
+            <div class="loading-bar" id="loadingBar"></div>
+
+            <!-- Alert -->
+            <div class="alert" id="alertBox">
+                <span class="alert-icon" id="alertIcon"></span>
+                <div class="alert-body">
+                    <div class="alert-title" id="alertTitle"></div>
+                    <div id="alertMsg"></div>
+                </div>
+                <button class="alert-close" onclick="closeAlert()">✕</button>
             </div>
-            <div class="loading-text">Searching for jobs</div>
-            <div class="loading-subtext">This may take a moment...</div>
-            <div class="progress-dots">
-                <div class="dot"></div>
-                <div class="dot"></div>
-                <div class="dot"></div>
-            </div>
+
+            <!-- Form -->
+            <form id="searchForm" onsubmit="handleSearch(event)">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="job_role">Job title or role</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">💼</span>
+                            <input type="text" id="job_role" name="job_role" placeholder="e.g. Software Engineer" required autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="location">Location</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">📍</span>
+                            <input type="text" id="location" name="location" placeholder="e.g. New York, Remote" value="United States" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="experience_level">Experience level</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">🎓</span>
+                            <select id="experience_level" name="experience_level">
+                                <option value="all">All levels</option>
+                                <option value="entry_level">Entry level (0–2 yrs)</option>
+                                <option value="mid_level">Mid level (3–5 yrs)</option>
+                                <option value="senior_level">Senior (5+ yrs)</option>
+                                <option value="internship">Internship</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" style="justify-content: flex-end;">
+                        <label for="results_wanted">Number of results: <span id="resultsDisplay" style="color:var(--indigo-hi)">10</span></label>
+                        <div class="slider-row" style="margin-bottom:0;">
+                            <input type="range" id="results_wanted" name="results_wanted" min="3" max="50" value="10">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email panel (only when email tab is active) -->
+                <div class="email-panel" id="emailPanel">
+                    <div class="form-group full">
+                        <label for="email_addr">Your email address</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">✉️</span>
+                            <input type="email" id="email_addr" name="email_addr" placeholder="you@example.com" autocomplete="email">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <span id="submitBtnLabel">Search Jobs</span>
+                    </button>
+                </div>
+            </form>
         </div>
 
-        <div class="message" id="message">
-            <button class="close-btn" onclick="closeMessage()">×</button>
-            <div id="messageContent"></div>
+        <!-- Loading state -->
+        <div class="loading-state" id="loadingState">
+            <div class="spinner"></div>
+            <h3>Hunting across platforms…</h3>
+            <p>Searching Indeed, LinkedIn, ZipRecruiter and Glassdoor</p>
         </div>
 
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-title">Lightning Fast</div>
-                <div class="feature-desc">Instant results in seconds</div>
+        <!-- Results section -->
+        <div id="resultsSection" style="display:none;">
+            <div class="results-header">
+                <div class="results-title" id="resultsTitle">Results</div>
+                <div class="results-count" id="resultsCount"></div>
             </div>
-            <div class="feature-card">
-                <div class="feature-title">Email Alerts</div>
-                <div class="feature-desc">Get notified instantly</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-title">CSV Export</div>
-                <div class="feature-desc">Download full data</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-title">100% Secure</div>
-                <div class="feature-desc">Your data is safe</div>
-            </div>
+            <div class="results-grid" id="resultsGrid"></div>
         </div>
+
+        <!-- Empty state -->
+        <div class="empty-state" id="emptyState">
+            <span class="empty-icon">🔭</span>
+            <h3>No jobs found</h3>
+            <p>Try different keywords, broaden your location, or increase the result count.</p>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>JobSpy — Aggregating real job listings in real time</p>
+            <div class="footer-links">
+                <span>Indeed</span>
+                <span>·</span>
+                <span>LinkedIn</span>
+                <span>·</span>
+                <span>ZipRecruiter</span>
+                <span>·</span>
+                <span>Glassdoor</span>
+            </div>
+        </footer>
+
     </div>
 
     <script>
-        // Theme Toggle
-        const themeToggle = document.getElementById('themeToggle');
-        const html = document.documentElement;
-        const themeSlider = document.querySelector('.theme-toggle-slider');
+        // ──────────── State ────────────
+        let currentTab = 'show';  // 'show' | 'email'
 
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        html.setAttribute('data-theme', savedTheme);
-        themeSlider.textContent = '';
+        // ──────────── Tabs ────────────
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tabShow').classList.toggle('active', tab === 'show');
+            document.getElementById('tabEmail').classList.toggle('active', tab === 'email');
 
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            themeSlider.textContent = '';
-        });
+            const emailPanel = document.getElementById('emailPanel');
+            const emailInput = document.getElementById('email_addr');
+            const btnLabel   = document.getElementById('submitBtnLabel');
 
-        // Character counters
-        const jobRoleInput = document.getElementById('job_role');
-        const locationInput = document.getElementById('location');
-        const roleCounter = document.getElementById('roleCounter');
-        const locationCounter = document.getElementById('locationCounter');
+            if (tab === 'email') {
+                emailPanel.classList.add('open');
+                emailInput.required = true;
+                btnLabel.textContent = 'Email Me Results';
+            } else {
+                emailPanel.classList.remove('open');
+                emailInput.required = false;
+                btnLabel.textContent = 'Search Jobs';
+            }
+        }
 
-        jobRoleInput.addEventListener('input', () => {
-            roleCounter.textContent = `${jobRoleInput.value.length}/100`;
-        });
+        // ──────────── Slider ────────────
+        const slider  = document.getElementById('results_wanted');
+        const display = document.getElementById('resultsDisplay');
+        slider.addEventListener('input', () => { display.textContent = slider.value; });
 
-        locationInput.addEventListener('input', () => {
-            locationCounter.textContent = `${locationInput.value.length}/100`;
-        });
+        // ──────────── Alert helpers ────────────
+        function showAlert(type, title, msg) {
+            const box   = document.getElementById('alertBox');
+            const icon  = document.getElementById('alertIcon');
+            const ttl   = document.getElementById('alertTitle');
+            const body  = document.getElementById('alertMsg');
 
-        // Range slider
-        const resultsSlider = document.getElementById('results_wanted');
-        const resultsValue = document.getElementById('resultsValue');
+            box.className = `alert active ${type}`;
+            icon.textContent = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+            ttl.textContent  = title;
+            body.textContent = msg;
+        }
 
-        resultsSlider.addEventListener('input', () => {
-            resultsValue.textContent = resultsSlider.value;
-        });
+        function closeAlert() {
+            document.getElementById('alertBox').classList.remove('active');
+        }
 
-        locationCounter.textContent = `${locationInput.value.length}/100`;
+        // ──────────── Helpers ────────────
+        function setLoading(on) {
+            document.getElementById('loadingBar').classList.toggle('active', on);
+            document.getElementById('loadingState').classList.toggle('active', on);
+            document.getElementById('submitBtn').disabled = on;
+            document.getElementById('submitBtnLabel').textContent = on
+                ? 'Searching…'
+                : (currentTab === 'email' ? 'Email Me Results' : 'Search Jobs');
+        }
 
-        // Form
-        const form = document.getElementById('jobSearchForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const loading = document.getElementById('loading');
-        const messageDiv = document.getElementById('message');
-        const messageContent = document.getElementById('messageContent');
+        function badgeClass(site) {
+            const map = {
+                indeed: 'badge-indeed',
+                linkedin: 'badge-linkedin',
+                glassdoor: 'badge-glassdoor',
+                zip_recruiter: 'badge-zip_recruiter',
+            };
+            return map[site] || 'badge-indeed';
+        }
 
-        form.addEventListener('submit', async (e) => {
+        function siteLabel(site) {
+            const map = {
+                indeed: 'Indeed',
+                linkedin: 'LinkedIn',
+                glassdoor: 'Glassdoor',
+                zip_recruiter: 'ZipRecruiter',
+            };
+            return map[site] || site;
+        }
+
+        // ──────────── Render cards ────────────
+        function renderJobs(jobs) {
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = '';
+
+            jobs.forEach((job, i) => {
+                const salary   = job.salary ? `<span class="salary-tag">💰 ${job.salary}</span>` : '';
+                const remote   = job.is_remote ? `<span class="remote-tag">🌐 Remote</span>` : '';
+                const siteHtml = job.site
+                    ? `<span class="job-badge ${badgeClass(job.site)}">${siteLabel(job.site)}</span>`
+                    : '';
+                const desc = job.description
+                    ? `<div class="job-description">${escHtml(job.description)}</div>`
+                    : '';
+                const applyUrl = job.job_url && job.job_url !== '#' ? job.job_url : '#';
+
+                const card = document.createElement('div');
+                card.className = 'job-card';
+                card.style.animationDelay = `${i * 0.04}s`;
+
+                card.innerHTML = `
+                    <div class="job-card-top">
+                        <div class="job-card-info">
+                            <a class="job-title-link" href="${applyUrl}" target="_blank" rel="noopener noreferrer">
+                                ${escHtml(job.title)}
+                            </a>
+                            <div class="job-company">${escHtml(job.company)}</div>
+                        </div>
+                        ${siteHtml}
+                    </div>
+
+                    <div class="job-meta">
+                        <span class="meta-item"><span class="meta-icon">📍</span>${escHtml(job.location)}</span>
+                        ${job.job_type ? `<span class="meta-item"><span class="meta-icon">🏷️</span>${escHtml(job.job_type)}</span>` : ''}
+                        ${salary}
+                        ${remote}
+                    </div>
+
+                    ${desc}
+
+                    <div class="job-card-footer">
+                        <span class="date-chip">Posted ${escHtml(job.date_posted)}</span>
+                        <a class="apply-btn" href="${applyUrl}" target="_blank" rel="noopener noreferrer">
+                            View & Apply →
+                        </a>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function escHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g,'&amp;')
+                .replace(/</g,'&lt;')
+                .replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;');
+        }
+
+        // ──────────── Main handler ────────────
+        async function handleSearch(e) {
             e.preventDefault();
-            const formData = new FormData(form);
+            closeAlert();
 
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span>Processing...</span>';
-            loading.classList.add('active');
-            messageDiv.classList.remove('active');
+            const role     = document.getElementById('job_role').value.trim();
+            const location = document.getElementById('location').value.trim() || 'United States';
+            const exp      = document.getElementById('experience_level').value;
+            const results  = parseInt(slider.value, 10);
+            const email    = document.getElementById('email_addr').value.trim();
+
+            if (!role) { showAlert('error', 'Missing field', 'Please enter a job title.'); return; }
+
+            // Hide old results
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('emptyState').classList.remove('active');
+            setLoading(true);
 
             try {
-                const response = await fetch('/search', {
-                    method: 'POST',
-                    body: formData
-                });
+                if (currentTab === 'email') {
+                    // ── Email mode ──
+                    if (!email) { setLoading(false); showAlert('error', 'Missing email', 'Please enter your email address.'); return; }
 
-                const data = await response.json();
+                    const res  = await fetch('/api/email-jobs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ job_role: role, location, results_wanted: results, experience_level: exp, email })
+                    });
+                    const data = await res.json();
+                    setLoading(false);
 
-                loading.classList.remove('active');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<span>Search & Send to Email</span>';
-
-                messageDiv.classList.add('active');
-                if (data.status === 'success') {
-                    messageDiv.className = 'message active success';
-                    messageContent.innerHTML = `
-                        <strong>Success!</strong>
-                        <p>${data.message}</p>
-                        <p style="margin-top: 12px; font-size: 0.9em; opacity: 0.9;">
-                            Check your email inbox (and spam folder) in a few moments.
-                        </p>
-                    `;
-                    createConfetti();
-                } else {
-                    messageDiv.className = 'message active error';
-                    messageContent.innerHTML = `
-                        <strong>Error</strong>
-                        <p>${data.message}</p>
-                    `;
-                }
-
-                setTimeout(() => messageDiv.classList.remove('active'), 15000);
-
-            } catch (error) {
-                loading.classList.remove('active');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<span>Search & Send to Email</span>';
-                
-                messageDiv.classList.add('active');
-                messageDiv.className = 'message active error';
-                messageContent.innerHTML = `
-                    <strong>Network Error</strong>
-                    <p>Unable to connect. Please check your internet connection and try again.</p>
-                `;
-            }
-        });
-
-        // Email validation
-        const emailInput = document.getElementById('email');
-        emailInput.addEventListener('blur', () => {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (emailInput.value && !emailRegex.test(emailInput.value)) {
-                emailInput.style.borderColor = 'var(--error)';
-                emailInput.style.boxShadow = '0 0 0 4px rgba(239, 68, 68, 0.2)';
-            } else {
-                emailInput.style.borderColor = '';
-                emailInput.style.boxShadow = '';
-            }
-        });
-
-        emailInput.addEventListener('input', () => {
-            emailInput.style.borderColor = '';
-            emailInput.style.boxShadow = '';
-        });
-
-        function closeMessage() {
-            messageDiv.classList.remove('active');
-        }
-
-        // Confetti
-        function createConfetti() {
-            const colors = ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#10b981'];
-            for (let i = 0; i < 50; i++) {
-                setTimeout(() => {
-                    const confetti = document.createElement('div');
-                    confetti.style.cssText = `
-                        position: fixed;
-                        width: ${Math.random() * 10 + 5}px;
-                        height: ${Math.random() * 10 + 5}px;
-                        background: ${colors[Math.floor(Math.random() * colors.length)]};
-                        left: ${Math.random() * 100}%;
-                        top: -20px;
-                        opacity: 1;
-                        border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
-                        pointer-events: none;
-                        z-index: 9999;
-                        animation: confettiFall ${2 + Math.random() * 2}s linear forwards;
-                    `;
-                    document.body.appendChild(confetti);
-                    setTimeout(() => confetti.remove(), 4000);
-                }, i * 20);
-            }
-        }
-
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes confettiFall {
-                to {
-                    transform: translateY(100vh) rotate(${Math.random() * 720}deg);
-                    opacity: 0;
-                }
-            }
-        `;
-        document.head.appendChild(style);
-
-        // Particles
-        function createParticles() {
-            const particlesContainer = document.getElementById('particles');
-            for (let i = 0; i < 20; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.animationDuration = (Math.random() * 5 + 5) + 's';
-                particle.style.animationDelay = Math.random() * 5 + 's';
-                particlesContainer.appendChild(particle);
-            }
-        }
-
-        createParticles();
-
-        // Form animations
-        const inputs = document.querySelectorAll('input, select');
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
-                const label = this.closest('.form-group').querySelector('label');
-                if (label) label.style.color = 'var(--primary)';
-            });
-            
-            input.addEventListener('blur', function() {
-                const label = this.closest('.form-group').querySelector('label');
-                if (label) label.style.color = '';
-            });
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                form.dispatchEvent(new Event('submit'));
-            }
-            if (e.key === 'Escape') {
-                closeMessage();
-            }
-        });
-
-        // Save/Load form data
-        const saveFormData = () => {
-            const formData = {
-                job_role: jobRoleInput.value,
-                location: locationInput.value,
-                experience_level: document.getElementById('experience_level').value,
-                results_wanted: resultsSlider.value
-            };
-            localStorage.setItem('jobSpyFormData', JSON.stringify(formData));
-        };
-
-        const loadFormData = () => {
-            const savedData = localStorage.getItem('jobSpyFormData');
-            if (savedData) {
-                try {
-                    const data = JSON.parse(savedData);
-                    if (data.job_role) jobRoleInput.value = data.job_role;
-                    if (data.location) locationInput.value = data.location;
-                    if (data.experience_level) document.getElementById('experience_level').value = data.experience_level;
-                    if (data.results_wanted) {
-                        resultsSlider.value = data.results_wanted;
-                        resultsValue.textContent = data.results_wanted;
+                    if (data.status === 'success') {
+                        showAlert('success', 'On its way!', data.message);
+                    } else {
+                        showAlert('error', 'Something went wrong', data.message);
                     }
-                    roleCounter.textContent = `${jobRoleInput.value.length}/100`;
-                    locationCounter.textContent = `${locationInput.value.length}/100`;
-                } catch (e) {}
-            }
-        };
 
-        let saveTimeout;
-        inputs.forEach(input => {
-            if (input.type !== 'email') {
-                input.addEventListener('input', () => {
-                    clearTimeout(saveTimeout);
-                    saveTimeout = setTimeout(saveFormData, 500);
-                });
-            }
-        });
+                } else {
+                    // ── Show mode ──
+                    const res  = await fetch('/api/search-jobs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ job_role: role, location, results_wanted: results, experience_level: exp })
+                    });
+                    const data = await res.json();
+                    setLoading(false);
 
-        window.addEventListener('DOMContentLoaded', loadFormData);
-
-        // Ripple effect
-        submitBtn.addEventListener('click', function(e) {
-            const ripple = document.createElement('span');
-            const rect = this.getBoundingClientRect();
-            const size = Math.max(rect.width, rect.height);
-            const x = e.clientX - rect.left - size / 2;
-            const y = e.clientY - rect.top - size / 2;
-            
-            ripple.style.cssText = `
-                position: absolute;
-                width: ${size}px;
-                height: ${size}px;
-                left: ${x}px;
-                top: ${y}px;
-                background: rgba(255, 255, 255, 0.5);
-                border-radius: 50%;
-                transform: scale(0);
-                animation: ripple 0.6s ease-out;
-                pointer-events: none;
-            `;
-            
-            this.appendChild(ripple);
-            setTimeout(() => ripple.remove(), 600);
-        });
-
-        const rippleStyle = document.createElement('style');
-        rippleStyle.textContent = `
-            @keyframes ripple {
-                to {
-                    transform: scale(4);
-                    opacity: 0;
+                    if (data.status === 'success') {
+                        if (data.jobs && data.jobs.length > 0) {
+                            document.getElementById('resultsTitle').textContent =
+                                `${role} jobs in ${location}`;
+                            document.getElementById('resultsCount').textContent =
+                                `${data.count} result${data.count !== 1 ? 's' : ''}`;
+                            document.getElementById('resultsSection').style.display = 'block';
+                            renderJobs(data.jobs);
+                            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        } else {
+                            document.getElementById('emptyState').classList.add('active');
+                        }
+                    } else {
+                        showAlert('error', 'Search failed', data.message);
+                    }
                 }
+            } catch (err) {
+                setLoading(false);
+                showAlert('error', 'Network error', 'Could not reach the server. Please check your connection and try again.');
+                console.error(err);
             }
-        `;
-        document.head.appendChild(rippleStyle);
+        }
+
+        // ──────────── Persist form ────────────
+        function saveForm() {
+            const d = {
+                job_role: document.getElementById('job_role').value,
+                location: document.getElementById('location').value,
+                experience_level: document.getElementById('experience_level').value,
+                results_wanted: slider.value,
+            };
+            try { localStorage.setItem('jspy_form', JSON.stringify(d)); } catch(_) {}
+        }
+
+        function loadForm() {
+            try {
+                const d = JSON.parse(localStorage.getItem('jspy_form') || 'null');
+                if (!d) return;
+                if (d.job_role) document.getElementById('job_role').value = d.job_role;
+                if (d.location) document.getElementById('location').value = d.location;
+                if (d.experience_level) document.getElementById('experience_level').value = d.experience_level;
+                if (d.results_wanted) { slider.value = d.results_wanted; display.textContent = d.results_wanted; }
+            } catch(_) {}
+        }
+
+        document.getElementById('searchForm').addEventListener('input', saveForm);
+        loadForm();
+
+        // ──────────── Keyboard shortcut ────────────
+        document.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                document.getElementById('searchForm').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+        });
     </script>
 </body>
 </html>
