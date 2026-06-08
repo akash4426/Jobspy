@@ -1,18 +1,11 @@
-# -------------------------------
-# Web Framework & Deployment
-# -------------------------------
+# Web Framework
 flask==3.0.0
 gunicorn==21.2.0
 
-# -------------------------------
-# Job Scraping & Data Handling
-# -------------------------------
+# Job Scraping
 python-jobspy==1.1.74
 pandas==2.1.4
 numpy==1.26.3
-openpyxl==3.1.2
 
-# -------------------------------
-# Environment Configuration
-# -------------------------------
+# Utilities
 python-dotenv==1.0.0
