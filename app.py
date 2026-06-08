@@ -1,3 +1,4 @@
+# JobSpy Flask App — build: 2026-06-08
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for
 from jobspy import scrape_jobs
 import pandas as pd
